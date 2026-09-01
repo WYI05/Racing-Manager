@@ -1,4 +1,4 @@
-# Racing Manager
+# Pitwall
 
 Multi-race pit-wall manager for endurance karting: pre-race strategy building and
 live race data. Ships with one seeded race (the SWS Endurance Cup 3-hour at Vegas
@@ -7,7 +7,7 @@ the product.
 
 Live site: https://wyi05.github.io/Racing-Manager/
 
-## `index.html` — Racing Manager (any race)
+## `index.html` — Pitwall (any race)
 
 Self-contained app, no build step, no backend. Data is kept in `localStorage`
 with JSON **Export/Import** to move it between phones.

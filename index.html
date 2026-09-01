@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Racing Manager</title>
+<title>Pitwall</title>
 <link rel="icon" href="assets/favicon.svg?v=4" type="image/svg+xml">
 <link rel="alternate icon" href="assets/logo.png?v=4">
-<meta name="description" content="Multi-race pit wall manager: quali times, lap logging, stint records, rival positions, and analysis.">
+<meta name="description" content="Pitwall — race strategy, lap timing, and live pit wall data for endurance racing teams.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
@@ -39,9 +39,8 @@
   .logo-img{object-fit:contain}
   .hs-brand .logo-img{width:clamp(28px,2.6vw,34px);height:clamp(28px,2.6vw,34px)}
   [hidden]{display:none !important}
-  .brand .eyebrow{font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
-  .brand h1{font-size:clamp(20px,3vw,25px);font-weight:500;letter-spacing:-.015em;line-height:1.15}
-  .brand h1 .thin{color:var(--ink-dim)}
+  .brand .eyebrow{font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#fff}
+  .brand h1{font-family:var(--mono);font-size:clamp(19px,2.8vw,23px);font-weight:700;letter-spacing:.16em;text-transform:uppercase;line-height:1.2;color:#fff}
   .hdr-tools{position:relative;margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding-bottom:14px}
   .hdr-tools::before{content:"";position:absolute;left:50%;bottom:5px;transform:translateX(-50%);
     width:12px;height:9px;background:linear-gradient(180deg,#262c34,#171b21);clip-path:polygon(32% 0,68% 0,100% 100%,0 100%)}
@@ -255,8 +254,8 @@
       <circle cx="17" cy="17" r="3.7" fill="#151519"/>
     </svg>
     <div>
-      <div class="eyebrow">Pit wall data &middot; multi-race</div>
-      <h1>Racing <span class="thin">Manager</span></h1>
+      <div class="eyebrow">Race strategy &middot; multi-race</div>
+      <h1>Pitwall</h1>
     </div>
   </a>
   <nav class="tabs" id="tabs"></nav>
