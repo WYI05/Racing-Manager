@@ -62,11 +62,14 @@
   button.ghost{background:none}
 
   /* Tabs */
-  nav.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:20px 0 14px}
+  nav.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:0 auto;justify-content:center}
+  section.pane{margin-top:20px}
+  .home-hero{min-height:calc(100vh - 200px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(30px,7vh,64px);text-align:center;padding:24px 0}
+  #bgStage.home .bg-shade{background:linear-gradient(180deg,rgba(10,13,18,.62),rgba(10,13,18,.34) 45%,rgba(10,13,18,.66))}
   .tabs button{font-size:13px;font-weight:500;height:34px;padding:0 16px;color:#909093}
   .tabs button.on{color:var(--accent-soft);border-color:rgba(244,157,112,.45);background:var(--chip-grad-hover)}
 
-  section.pane{background:var(--panel);border:0;border-radius:18px;padding:22px 24px 26px;margin-bottom:26px;
+  section.pane{background:var(--panel);border:0;border-radius:18px;padding:22px 24px 26px;margin:20px 0 26px;
     box-shadow:inset 0 0 0 1px var(--ring), 0 18px 50px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(22px) saturate(112%);backdrop-filter:blur(22px) saturate(112%)}
   .pane h2{font-size:17px;font-weight:600;color:var(--ink);margin-bottom:10px}
   .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
@@ -184,41 +187,6 @@
 </head>
 <body>
 <div id="bgStage" aria-hidden="true"><img id="bgImg" alt="" onerror="this.style.display='none'" onload="this.style.display=''"><div class="bg-shade"></div></div>
-<div id="heroStage" hidden>
-  <video autoplay muted loop playsinline
-    src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
-  <img class="stage-gif" src="https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.gif" alt="" onerror="this.remove()">
-  <div class="hs-shade"></div>
-  <div class="hs-frame">
-    <header class="hs-nav">
-      <div class="hs-brand">
-        <img class="logo-img" src="assets/logo.png?v=3" alt="" onerror="this.hidden=true;this.nextElementSibling.removeAttribute('hidden')">
-        <svg viewBox="0 0 34 34" aria-hidden="true" hidden>
-          <circle cx="17" cy="17" r="17" fill="#9C86CE"/>
-          <circle cx="17" cy="17" r="8.6" fill="#ffffff"/>
-          <circle cx="17" cy="17" r="3.7" fill="#151519"/>
-        </svg>
-        <b>Racing Manager</b>
-      </div>
-      <nav class="hs-links" aria-label="Sections">
-        <button data-enter="strategy">Strategy</button>
-        <button data-enter="race">Race</button>
-        <button data-enter="rivals">Rivals</button>
-        <button data-enter="analysis">Analysis</button>
-      </nav>
-      <button class="hs-cta" data-enter="">Open pit wall</button>
-    </header>
-
-    <main class="hs-hero">
-      <h1 class="hs-h1">Plan the race. <span class="dim">Run the pit wall.</span></h1>
-    </main>
-
-    <footer class="hs-proof">
-      <p class="hs-by">Built for the pit wall</p>
-      <div class="hs-logos"><span>Stint plans</span><span>Lap logging</span><span>Position traces</span></div>
-    </footer>
-  </div>
-</div>
 <div class="wrap">
 
 <header>
@@ -234,19 +202,23 @@
       <h1>Racing <span class="thin">Manager</span></h1>
     </div>
   </a>
+  <nav class="tabs" id="tabs"></nav>
   <div class="hdr-tools">
     <select id="raceSel" aria-label="Select race"></select>
-    <button id="newRace" class="mini">+ New race</button>
-    <button id="exportBtn" class="mini ghost">Export</button>
-    <button id="importBtn" class="mini ghost">Import</button>
     <input type="file" id="importFile" accept="application/json" class="hidden">
   </div>
 </header>
 
-<nav class="tabs" id="tabs"></nav>
+<main id="homeHero" class="home-hero" hidden>
+  <h1 class="hs-h1">Plan the race. <span class="dim">Run the pit wall.</span></h1>
+  <div class="hs-proof">
+    <p class="hs-by">Built for the pit wall</p>
+    <div class="hs-logos"><span>Stint plans</span><span>Lap logging</span><span>Position traces</span></div>
+  </div>
+</main>
 <section class="pane" id="pane"></section>
 
-<footer>
+<footer id="appFoot">
   <div>Data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
   <div id="footLink"></div>
 </footer>
@@ -347,6 +319,7 @@ function allLaps(r){
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
 var GIFS = {
+  home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.gif"],
   setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
   strategy:    ["https://media.giphy.com/media/QOVipuxpjZoBoUNDGt/giphy.gif"],
   highlights:  ["https://media.giphy.com/media/Uryw0ZBmHC0iA/giphy.gif",
@@ -366,7 +339,7 @@ function tgtPill(avgMs){
 }
 
 /* ---------- app state (not persisted) ---------- */
-var tab = "setup";
+var tab = "home";
 var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
 var cd = { running:false, endAt:0 };                    // countdown
@@ -411,6 +384,7 @@ function paneSetup(){
       + '<td><button class="mini danger" data-deldrv="' + d.id + '">remove</button></td></tr>';
   });
   h += '</tbody></table></div><button class="mini" id="addDrv">+ Add driver</button>';
+  h += '<h2 style="margin-top:22px">Races &amp; data</h2><div class="btn-row"><button class="mini" id="newRace">+ New race</button><button class="mini ghost" id="exportBtn">Export</button><button class="mini ghost" id="importBtn">Import</button></div>';
   h += '<div class="callout">Data lives in this browser only. Before race day, <b>Export</b> a backup and <b>Import</b> it on the second phone — then export again after the race to merge notes.</div>';
   h += '<div style="margin-top:18px;border-top:1px dashed var(--line);padding-top:14px"><button class="danger mini" id="delRace">Delete this race</button></div>';
   return h;
@@ -689,15 +663,20 @@ function lapChart(r, laps, best){
 function render(){
   renderHeader(); renderTabs();
   var pane = document.getElementById("pane");
-  pane.innerHTML = tab === "setup" ? paneSetup()
+  var home = tab === "home";
+  document.getElementById("homeHero").hidden = !home;
+  document.getElementById("appFoot").hidden = home;
+  pane.hidden = home;
+  if (!home) pane.innerHTML = tab === "setup" ? paneSetup()
     : tab === "strategy" ? paneStrategy()
     : tab === "quali" ? paneQuali()
     : tab === "race" ? paneRace()
     : tab === "rivals" ? paneRivals()
     : paneAnalysis();
-  var bgKey = {setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", rivals:"champagne", analysis:"celebration"}[tab];
+  var bgKey = {home:"home", setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", rivals:"champagne", analysis:"celebration"}[tab];
   var bg = document.getElementById("bgImg");
   if (bg && GIF_PICK[bgKey] && bg.getAttribute("src") !== GIF_PICK[bgKey]) bg.src = GIF_PICK[bgKey];
+  document.getElementById("bgStage").classList.toggle("home", home);
   save();
 }
 
@@ -708,7 +687,7 @@ document.getElementById("tabs").addEventListener("click", function(e){
 document.getElementById("raceSel").addEventListener("change", function(e){
   store.currentId = e.target.value; openStint = -1; stopTimers(); render();
 });
-document.getElementById("newRace").addEventListener("click", function(){
+function doNewRace(){
   var id = uid(), src = cur();
   store.races[id] = {
     meta:{ name:src.meta.name, event:"New race", track:"", date:"", green:"", stints:9, stintMin:20, link:"", notes:"" },
@@ -717,15 +696,14 @@ document.getElementById("newRace").addEventListener("click", function(){
   };
   normalize(store.races[id]);
   store.currentId = id; tab = "setup"; openStint = -1; stopTimers(); render();
-});
-document.getElementById("exportBtn").addEventListener("click", function(){
+}
+function doExport(){
   var blob = new Blob([JSON.stringify(store, null, 1)], {type:"application/json"});
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "sable-racing-" + new Date().toISOString().slice(0,10) + ".json";
+  a.download = "racing-manager-" + new Date().toISOString().slice(0,10) + ".json";
   document.body.appendChild(a); a.click(); a.remove();
-});
-document.getElementById("importBtn").addEventListener("click", function(){ document.getElementById("importFile").click(); });
+}
 document.getElementById("importFile").addEventListener("change", function(e){
   var f = e.target.files[0]; if (!f) return;
   var rd = new FileReader();
@@ -768,7 +746,10 @@ paneEl.addEventListener("change", function(e){
 paneEl.addEventListener("click", function(e){
   var t = e.target.closest("button"); if (!t) return;
   var r = cur(), a;
-  if (t.id === "addDrv"){ r.drivers.push({id:uid(), name:"Driver " + (r.drivers.length+1), c:r.drivers.length % PAL.length}); render(); }
+  if (t.id === "newRace") doNewRace();
+  else if (t.id === "exportBtn") doExport();
+  else if (t.id === "importBtn") document.getElementById("importFile").click();
+  else if (t.id === "addDrv"){ r.drivers.push({id:uid(), name:"Driver " + (r.drivers.length+1), c:r.drivers.length % PAL.length}); render(); }
   else if ((a = t.getAttribute("data-deldrv"))){
     if (!confirm("Remove this driver? Their quali times are removed too (stint assignments are kept).")) return;
     r.drivers = r.drivers.filter(function(d){ return d.id !== a; });
@@ -872,28 +853,10 @@ setInterval(function(){
   }
 }, 250);
 
-/* ---------- landing hero ---------- */
-var heroStage = document.getElementById("heroStage");
-function heroShow(){
-  heroStage.hidden = false;
-  heroStage.classList.remove("bye");
-  heroStage.classList.add("anim");
-  document.body.style.overflow = "hidden";
-}
-function heroEnter(tabTo){
-  heroStage.classList.add("bye");
-  document.body.style.overflow = "";
-  setTimeout(function(){ heroStage.hidden = true; heroStage.classList.remove("anim"); }, 480);
-  if (tabTo){ tab = tabTo; render(); }
-}
-document.getElementById("brandHome").addEventListener("click", function(e){ e.preventDefault(); heroShow(); });
-heroStage.addEventListener("click", function(e){
-  var b = e.target.closest("[data-enter]");
-  if (b) heroEnter(b.getAttribute("data-enter"));
-});
+document.getElementById("brandHome").addEventListener("click", function(e){ e.preventDefault(); tab = "home"; render(); });
+
 /* ---------- boot ---------- */
 load(); render();
-heroShow();
 </script>
 </body>
 </html>
