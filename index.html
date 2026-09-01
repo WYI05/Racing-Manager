@@ -58,20 +58,30 @@
 
   select,input,textarea,button{font-family:inherit;font-size:13.5px;color:var(--ink)}
   select,input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],textarea{
-    background:var(--field);border:1px solid var(--line);border-radius:4px;padding:7px 10px}
+    background:#0a0e14;border:1px solid #2c333c;border-radius:3px;padding:6px 10px;color:#dbe4ee;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.45)}
+  select:hover,input:hover,textarea:hover{border-color:#3e4a57}
+  select option{background:#0c1219}
   input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid #F8B285;outline-offset:2px}
   input[type=number]{font-family:var(--mono)}
   textarea{width:100%;min-height:70px;resize:vertical}
   ::placeholder{color:var(--ink-faint)}
 
-  button{cursor:pointer;border-radius:4px;border:1px solid rgba(255,255,255,.05);background:var(--chip-grad);color:#c9c9cc;padding:8px 14px;font-weight:500}
-  button:hover{background:var(--chip-grad-hover);color:#fff;border-color:rgba(255,255,255,.05)}
-  button.primary{background:var(--accent-grad);border-color:transparent;color:#2b160a;font-weight:600;box-shadow:0 3px 12px rgba(210,110,60,.28)}
-  button.primary:hover{filter:brightness(1.07);background:var(--accent-grad);color:#2b160a}
-  button.danger{color:var(--red)}
-  button.danger:hover{border-color:rgba(255,90,90,.5);color:var(--red);background:var(--chip-grad)}
-  button.mini{padding:4px 11px;font-size:12px}
-  button.ghost{background:none}
+  button{cursor:pointer;border-radius:3px;border:1px solid #2c333c;color:#9fb0c0;padding:8px 13px;
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    background:linear-gradient(180deg,#1a212b 0%,#12171f 55%,#0e1319 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), inset 0 -6px 8px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.4)}
+  button:hover{color:#e6f0fa;border-color:#3e4a57;background:linear-gradient(180deg,#1e2836 0%,#151d28 55%,#101822 100%);
+    box-shadow:inset 0 0 12px rgba(120,200,255,.1), inset 0 -6px 8px rgba(0,0,0,.3), 0 1px 4px rgba(0,0,0,.4)}
+  button:active{transform:translateY(1px)}
+  button.primary{color:#ffd9b8;border-color:rgba(244,157,112,.75);text-shadow:0 0 8px rgba(244,157,112,.6);
+    background:linear-gradient(180deg,#20160f 0%,#170f0a 55%,#120c08 100%);
+    box-shadow:inset 0 0 14px rgba(244,157,112,.25), 0 0 12px rgba(244,157,112,.25), inset 0 -6px 8px rgba(0,0,0,.35)}
+  button.primary:hover{filter:brightness(1.12);color:#ffe4cc;border-color:rgba(244,157,112,.9)}
+  button.danger{color:#ff8a8a;border-color:rgba(255,90,90,.35)}
+  button.danger:hover{color:#ffb0b0;border-color:rgba(255,90,90,.65);box-shadow:inset 0 0 12px rgba(255,90,90,.12), inset 0 -6px 8px rgba(0,0,0,.3)}
+  button.mini{padding:5px 9px;font-size:9.5px}
+  button.ghost{background:linear-gradient(180deg,#151a22 0%,#10141b 100%)}
 
   /* Tabs */
   nav.tabs{position:relative;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:flex-end;margin:0 auto;padding:0 10px 14px}
