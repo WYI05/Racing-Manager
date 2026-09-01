@@ -881,7 +881,6 @@ function heroShow(){
   document.body.style.overflow = "hidden";
 }
 function heroEnter(tabTo){
-  try { localStorage.setItem("sable-hero-seen", "1"); } catch(e){}
   heroStage.classList.add("bye");
   document.body.style.overflow = "";
   setTimeout(function(){ heroStage.hidden = true; heroStage.classList.remove("anim"); }, 480);
@@ -894,9 +893,7 @@ heroStage.addEventListener("click", function(e){
 });
 /* ---------- boot ---------- */
 load(); render();
-var heroSeen = false;
-try { heroSeen = !!localStorage.getItem("sable-hero-seen"); } catch(e){}
-if (!heroSeen) heroShow();
+heroShow();
 </script>
 </body>
 </html>
