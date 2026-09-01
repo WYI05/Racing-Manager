@@ -205,7 +205,7 @@
 <div id="heroStage" hidden>
   <video autoplay muted loop playsinline
     src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
-  <img class="stage-gif" src="assets/hero-friday.gif" alt="" onerror="this.remove()">
+  <img class="stage-gif" src="https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.gif" alt="" onerror="this.remove()">
   <div class="hs-shade"></div>
   <div class="hs-frame">
     <header class="hs-nav">
@@ -380,7 +380,19 @@ function allLaps(r){
   return out;
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
-function gif(name){ return '<img class="pane-gif" src="assets/' + name + '.gif" alt="" onerror="this.remove()">'; }
+var GIFS = {
+  setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
+  strategy:    ["https://media.giphy.com/media/QOVipuxpjZoBoUNDGt/giphy.gif"],
+  highlights:  ["https://media.giphy.com/media/Uryw0ZBmHC0iA/giphy.gif",
+                "https://media.giphy.com/media/5uz1LWmcYxLiM/giphy.gif"],
+  onboard:     ["https://media.giphy.com/media/AFtIhlHAmk7mZtGWGb/giphy.gif"],
+  champagne:   ["https://media.giphy.com/media/NSI5daZGbVYJfzXbZo/giphy.gif"],
+  celebration: ["https://media.giphy.com/media/MFyOkMBGRRuJjJ6flU/giphy.gif",
+                "https://media.giphy.com/media/w9Y7z2qudgYgw/giphy.gif"]
+};
+var GIF_PICK = {};
+Object.keys(GIFS).forEach(function(k){ GIF_PICK[k] = GIFS[k][Math.floor(Math.random() * GIFS[k].length)]; });
+function gif(name){ return '<img class="pane-gif" loading="lazy" src="' + GIF_PICK[name] + '" alt="" onerror="this.remove()">'; }
 function tgtPill(avgMs){
   var tgt = parseLap(cur().meta.targetLap);
   if (!tgt || avgMs == null) return "";
@@ -414,7 +426,7 @@ function renderTabs(){
 /* ---------- SETUP ---------- */
 function paneSetup(){
   var r = cur(), m = r.meta;
-  var h = '<h2>Race setup</h2><div class="grid2">'
+  var h = gif('setup') + '<h2>Race setup</h2><div class="grid2">'
     + fld("Event name","event",m.event,"text","e.g. Vegas 3H Endurance")
     + fld("Team name","name",m.name,"text","")
     + fld("Track","track",m.track,"text","")
@@ -445,7 +457,7 @@ function fld(label, key, val, type, ph){
 /* ---------- STRATEGY ---------- */
 function paneStrategy(){
   var r = cur(), m = r.meta, n = m.stints;
-  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
+  var h = gif('strategy') + '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
   h += '<div class="plan-row">';
   for (var i = 0; i < n; i++){
     var d = driverById(r, r.plan[i]);
