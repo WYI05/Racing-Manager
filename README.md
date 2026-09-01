@@ -13,6 +13,9 @@ with JSON **Export/Import** to move it between phones.
 
 - **Multi-race**: create/switch/delete races; the Vegas 2026 event ships pre-seeded.
 - **Setup**: event, track, date, green-flag time, stint count/length, driver roster.
+- **Strategy**: tap-to-assign stint plan with rotation presets and consecutive-stint
+  warnings, target lap/finish, strategy notes — one tap pushes the plan into the
+  Race tab.
 - **Quali**: per-driver lap logging with automatic best; grid position.
 - **Race**: stint table (driver, kart #, positions in/out, best lap, notes),
   per-stint lap logger, a stint countdown with pit-board prompts (5:00 / 3:00 /

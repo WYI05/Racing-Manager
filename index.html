@@ -96,6 +96,15 @@
   .lap-chip button{border:none;background:none;padding:0;color:var(--ink-faint);font-size:12px;line-height:1}
   .lap-chip button:hover{color:var(--red)}
 
+  /* Strategy planner */
+  .plan-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;margin:12px 0 4px}
+  .plan-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 7px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-faint)}
+  .plan-cell:hover{filter:brightness(1.15)}
+  .pc-n,.pc-t{font-family:var(--mono);font-size:10px;letter-spacing:.1em}
+  .pc-who{font-family:var(--disp);font-size:20px;font-weight:800;line-height:1.05}
+  .plan-warn{font-family:var(--mono);font-size:13px;color:var(--amber);margin-top:8px;min-height:1.3em}
+  .plan-warn.ok{color:var(--green)}
+
   /* Stats */
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:8px 0 14px}
   .tile{background:var(--panel-2);padding:12px 14px}
@@ -168,11 +177,13 @@ function seed(){
   var vegas = {
     meta:{ name:"SABLE Motorsports", event:"Vegas 3H Endurance (SWS)", track:"Vegas Superkarts — Las Vegas, NV",
       date:"2026-09-05", green:"19:00", stints:9, stintMin:20, link:"vegas-race-book.html",
-      notes:"Ref US-VEG-142967 · Exotics Racing 702-405-7223 · payment due Sep 4 4PM PT · no radios · ballast yes" },
+      notes:"Ref US-VEG-142967 · no radios (pit board only) · kart rotation every stint · ballast yes" },
     drivers:[ {id:uid(), name:"William Yi", c:0}, {id:uid(), name:"Matthew Hergenroeder", c:1} ],
     quali:{ times:{}, grid:"" },
     stints:[], rivals:[], ourPos:[]
   };
+  vegas.plan = [];
+  for (var i = 0; i < 9; i++) vegas.plan.push(vegas.drivers[i % 2].id);
   return { currentId:"vegas2026", races:{ vegas2026: vegas } };
 }
 function normalize(r){
@@ -187,6 +198,10 @@ function normalize(r){
   r.rivals = r.rivals || [];
   r.quali = r.quali || {times:{}, grid:""};
   r.quali.times = r.quali.times || {};
+  r.plan = (r.plan || []).slice(0, n); while (r.plan.length < n) r.plan.push("");
+  if (r.meta.targetLap == null) r.meta.targetLap = "";
+  if (r.meta.targetPos == null) r.meta.targetPos = "";
+  if (r.meta.stratNotes == null) r.meta.stratNotes = "";
 }
 
 /* ---------- time helpers ---------- */
@@ -227,13 +242,19 @@ function allLaps(r){
   return out;
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
+function tgtPill(avgMs){
+  var tgt = parseLap(cur().meta.targetLap);
+  if (!tgt || avgMs == null) return "";
+  var d = (avgMs - tgt) / 1000, over = d > 0;
+  return '<span class="pill" style="color:' + (over ? "var(--red)" : "var(--green)") + '">&Delta; tgt ' + (over ? "+" : "") + d.toFixed(2) + 's</span>';
+}
 
 /* ---------- app state (not persisted) ---------- */
 var tab = "setup";
 var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
 var cd = { running:false, endAt:0 };                    // countdown
-var TABS = [["setup","Setup"],["quali","Quali"],["race","Race"],["rivals","Rivals"],["analysis","Analysis"]];
+var TABS = [["setup","Setup"],["strategy","Strategy"],["quali","Quali"],["race","Race"],["rivals","Rivals"],["analysis","Analysis"]];
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -280,6 +301,55 @@ function paneSetup(){
 }
 function fld(label, key, val, type, ph){
   return '<div class="field"><label>' + label + '</label><input type="' + type + '" value="' + esc(val) + '" placeholder="' + esc(ph) + '" data-meta="' + key + '"' + (type === "number" ? ' min="1" max="60"' : "") + '></div>';
+}
+
+/* ---------- STRATEGY ---------- */
+function paneStrategy(){
+  var r = cur(), m = r.meta, n = m.stints;
+  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
+  h += '<div class="plan-row">';
+  for (var i = 0; i < n; i++){
+    var d = driverById(r, r.plan[i]);
+    var col = d ? PAL[d.c % PAL.length].ui : null;
+    h += '<button class="plan-cell" data-plan="' + i + '"' + (col ? ' style="border-color:' + col + ';color:' + col + '"' : "") + '>'
+      + '<span class="pc-n">S' + (i+1) + '</span>'
+      + '<span class="pc-who">' + (d ? esc(d.name.split(" ")[0]).toUpperCase() : "—") + '</span>'
+      + '<span class="pc-t">' + stintWindow(m, i) + '</span></button>';
+  }
+  h += '</div>';
+  /* totals + warnings */
+  var counts = {}, runs = [], run = null;
+  r.plan.forEach(function(id){
+    if (id) counts[id] = (counts[id] || 0) + 1;
+    if (run && run.id === id && id) run.len++;
+    else { run = {id:id, len:1}; runs.push(run); }
+  });
+  var maxRun = runs.reduce(function(mx, x){ return x.id && x.len > mx ? x.len : mx; }, 0);
+  h += '<div class="btn-row" style="margin-top:10px">';
+  r.drivers.forEach(function(d){
+    var c = counts[d.id] || 0;
+    h += '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(d.name.split(" ")[0]) + ' ' + c + ' × ' + m.stintMin + 'min = ' + (c * m.stintMin) + 'min</span>';
+  });
+  h += '</div>';
+  h += '<div class="plan-warn ' + (maxRun >= 2 ? "" : "ok") + '">'
+    + (r.plan.some(function(p){ return !p; }) ? "Unassigned stints remain. "
+      : maxRun >= 3 ? "Warning: " + maxRun + " consecutive stints (" + (maxRun * m.stintMin) + " min straight) — check that's allowed and survivable. "
+      : maxRun === 2 ? "Contains a double stint — confirm consecutive stints are allowed at this event. "
+      : "Pure alternation — every rest gap is one stint long.") + '</div>';
+  h += '<div class="btn-row" style="margin-top:10px">';
+  r.drivers.forEach(function(d, di){
+    h += '<button class="mini" data-preset="' + di + '">Alternate · ' + esc(d.name.split(" ")[0]) + ' starts</button>';
+  });
+  h += '<button class="mini" id="planClear">Clear</button>'
+    + '<button class="primary mini" id="planApply">Apply plan &rarr; Race tab</button></div>';
+
+  h += '<h2 style="margin-top:24px">Targets</h2><div class="grid2">'
+    + fld("Target lap time","targetLap",m.targetLap,"text","e.g. 51.5")
+    + fld("Target finish","targetPos",m.targetPos,"text","e.g. P3")
+    + '</div>'
+    + '<p class="hint" style="margin-top:8px">Set a target lap and the Race tab shows a live &Delta; per stint, and Analysis compares your average against it.</p>'
+    + '<div class="field" style="margin-top:12px"><label>Strategy notes — passing plan, signals, kart intel, weather</label><textarea data-meta="stratNotes">' + esc(m.stratNotes) + '</textarea></div>';
+  return h;
 }
 
 /* ---------- QUALI ---------- */
@@ -355,7 +425,7 @@ function paneRace(){
         + '<div class="btn-row"><b style="font-family:var(--disp);text-transform:uppercase' + (col ? ";color:" + col : "") + '">S' + (i+1) + ' laps</b>'
         + '<input type="text" class="mono" style="max-width:120px" placeholder="add lap" data-ladd="' + i + '">'
         + '<button class="mini" data-lbtn="' + i + '">Add</button>'
-        + (s.laps.length ? '<span class="pill">best ' + fmtLap(best) + '</span><span class="pill">avg ' + fmtLap(mean(s.laps)) + '</span>' : "")
+        + (s.laps.length ? '<span class="pill">best ' + fmtLap(best) + '</span><span class="pill">avg ' + fmtLap(mean(s.laps)) + '</span>' + tgtPill(mean(s.laps)) : "")
         + '</div><div class="laps-list">'
         + s.laps.map(function(ms, li){
             return '<span class="lap-chip' + (ms === best ? " best" : "") + '">L' + (li+1) + ' &middot; ' + fmtLap(ms)
@@ -437,8 +507,13 @@ function paneAnalysis(){
     + tile("Best lap", fmtLap(best), (bd ? esc(bd.name.split(" ")[0]) : "?") + " · S" + (bl.si+1))
     + tile("Average", fmtLap(mean(times)), laps.length + " laps logged")
     + tile("Consistency σ", (sdev(times) != null ? (sdev(times)/1000).toFixed(3) + "s" : "—"), "lower = steadier")
-    + tile("Stints filled", r.stints.filter(function(s){ return s.laps.length; }).length + "/" + r.meta.stints, "with lap data")
-    + '</div>';
+    + tile("Stints filled", r.stints.filter(function(s){ return s.laps.length; }).length + "/" + r.meta.stints, "with lap data");
+  var tgt = parseLap(r.meta.targetLap);
+  if (tgt){
+    var dv = (mean(times) - tgt) / 1000;
+    h += tile("Vs target", (dv > 0 ? "+" : "") + dv.toFixed(2) + "s", "avg vs " + fmtLap(tgt) + (r.meta.targetPos ? " · aim " + esc(r.meta.targetPos) : ""));
+  }
+  h += '</div>';
 
   /* per-driver table */
   h += '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Avg</th><th>σ (s)</th></tr></thead><tbody>';
@@ -499,6 +574,7 @@ function render(){
   renderHeader(); renderTabs();
   var pane = document.getElementById("pane");
   pane.innerHTML = tab === "setup" ? paneSetup()
+    : tab === "strategy" ? paneStrategy()
     : tab === "quali" ? paneQuali()
     : tab === "race" ? paneRace()
     : tab === "rivals" ? paneRivals()
@@ -595,6 +671,22 @@ paneEl.addEventListener("click", function(e){
     var rv = {name:nm, pos:[]}; r.rivals.push(rv); normalize(r); render();
   }
   else if ((a = t.getAttribute("data-rvdel"))){ r.rivals.splice(+a, 1); render(); }
+  else if ((a = t.getAttribute("data-plan")) != null && t.classList.contains("plan-cell")){
+    var si = +a, ids = [""].concat(r.drivers.map(function(d){ return d.id; }));
+    var at = ids.indexOf(r.plan[si]);
+    r.plan[si] = ids[(at + 1) % ids.length];
+    render();
+  }
+  else if ((a = t.getAttribute("data-preset")) != null){
+    var start = +a, nd = r.drivers.length;
+    r.plan = r.plan.map(function(_, i){ return nd ? r.drivers[(start + i) % nd].id : ""; });
+    render();
+  }
+  else if (t.id === "planClear"){ r.plan = r.plan.map(function(){ return ""; }); render(); }
+  else if (t.id === "planApply"){
+    r.plan.forEach(function(id, i){ if (id && driverById(r, id)) r.stints[i].d = id; });
+    tab = "race"; render();
+  }
   else if (t.id === "cdStart") startCountdown();
   else if (t.id === "cdStop"){ cd.running = false; render(); }
   else if (t.id === "swGo"){ sw.running = true; sw.t0 = Date.now(); sw.lastLap = sw.t0; sw.stint = +document.getElementById("swStint").value; render(); }
