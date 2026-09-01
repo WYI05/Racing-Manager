@@ -158,29 +158,6 @@
   .hs-h1{font-family:inherit;text-transform:none;font-weight:420;font-size:clamp(30px,4.3vw,46px);line-height:1.12;letter-spacing:.0018em;color:#fff;text-align:center;text-wrap:balance;
     font-variation-settings:"opsz" 32;text-shadow:0 2px 22px rgba(0,0,0,.35)}
   .hs-h1 .dim{color:rgba(255,255,255,.78)}
-  .hs-card{width:min(100%,clamp(500px,74vw,720px));border-radius:clamp(17px,2.1vw,26px);background:rgba(41,41,43,.955);
-    -webkit-backdrop-filter:blur(24px) saturate(112%);backdrop-filter:blur(24px) saturate(112%);
-    box-shadow:inset 0 0 0 1px rgba(214,228,255,.14), 0 22px 60px rgba(0,0,0,.35);
-    padding:clamp(15px,1.9vw,24px);display:flex;flex-direction:column;gap:clamp(20px,4.4vh,42px)}
-  .hs-ph{color:#8B8C8E;font-size:clamp(12px,1.35vw,14.5px);line-height:1.4;letter-spacing:.007em}
-  .hs-ph .mono{color:#b0b1b4}
-  .hs-tools{display:flex;flex-wrap:wrap;align-items:center;gap:clamp(10px,1.4vw,18px)}
-  .hs-chips{display:flex;flex-wrap:wrap;gap:clamp(6px,.85vw,10px)}
-  .hs-chip{display:inline-flex;align-items:center;gap:6px;height:clamp(29px,3.4vh,34px);padding:0 clamp(9px,1vw,13px);border-radius:9px;
-    font-size:clamp(10px,1.05vw,12px);font-weight:500;color:#909093;cursor:pointer;
-    background:var(--chip-grad);
-    border:1px solid rgba(255,255,255,.05) !important}
-  .hs-chip:hover{color:#c8c8cb !important;background:var(--chip-grad-hover)}
-  .hs-chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
-  .hs-right{display:flex;align-items:center;margin-left:auto}
-  .hs-model{font-size:clamp(10px,1.05vw,12px);font-weight:400;color:#98999C}
-  .hs-send{margin-left:clamp(12px,1.3vw,18px);width:clamp(34px,3.5vw,40px);height:clamp(34px,3.5vw,40px);border-radius:50% !important;
-    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
-    background:var(--accent-grad) !important;
-    box-shadow:0 3px 12px rgba(210,110,60,.34)}
-  .hs-send svg{width:13px}
-  .hs-send:hover{filter:brightness(1.07)}
-  .hs-send:active{transform:scale(.95)}
   .hs-proof{display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.2vh,24px)}
   .hs-by{font-size:clamp(12px,1vw,14px);font-weight:480;letter-spacing:.0065em;color:rgba(255,255,255,.95);
     font-variation-settings:"opsz" 32;text-shadow:0 1px 12px rgba(0,0,0,.4)}
@@ -188,17 +165,12 @@
     font-size:clamp(13px,1.4vw,18px);letter-spacing:.02em;color:rgba(255,255,255,.92);text-shadow:0 1px 10px rgba(0,0,0,.4)}
   @media (max-width:599px){
     .hs-links{display:none}
-    .hs-tools{flex-direction:column;align-items:stretch;gap:12px}
-    .hs-right{margin-left:0;justify-content:flex-start}
-    .hs-send{margin-left:auto}
   }
   @media (prefers-reduced-motion: no-preference){
     @keyframes hsIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-    @keyframes hsPanel{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
     #heroStage.anim .hs-nav{animation:hsIn .55s cubic-bezier(.22,1,.36,1) .06s both}
     #heroStage.anim .hs-h1{animation:hsIn .9s cubic-bezier(.16,1,.3,1) .25s both}
-    #heroStage.anim .hs-card{animation:hsPanel .85s cubic-bezier(.16,1,.3,1) .5s both}
-    #heroStage.anim .hs-proof{animation:hsIn .55s cubic-bezier(.22,1,.36,1) .9s both}
+    #heroStage.anim .hs-proof{animation:hsIn .55s cubic-bezier(.22,1,.36,1) .7s both}
   }
 </style>
 </head>
@@ -229,24 +201,6 @@
 
     <main class="hs-hero">
       <h1 class="hs-h1">Plan the race. <span class="dim">Run the pit wall.</span></h1>
-      <div class="hs-card">
-        <p class="hs-ph">A 3-hour endurance race &mdash; <span class="mono">9 &times; 20 min</span> stints, kart rotation, no radios. Build the stint plan, log every lap, read the race&hellip;</p>
-        <div class="hs-tools">
-          <div class="hs-chips">
-            <button class="hs-chip" data-enter="strategy"><span class="dot" style="background:#ffb000"></span>Stint plan</button>
-            <button class="hs-chip" data-enter="race"><span class="dot" style="background:#4fc3f7"></span>Lap stopwatch</button>
-            <button class="hs-chip" data-enter="rivals"><span class="dot" style="background:#41d98d"></span>Position trace</button>
-          </div>
-          <div class="hs-right">
-            <span class="hs-model">Endurance</span>
-            <button class="hs-send" data-enter="" aria-label="Open pit wall">
-              <svg viewBox="0 0 12 13" fill="#ffffff" aria-hidden="true">
-                <path d="M6 0l5.6 5.6-1.7 1.7L7.2 4.6V13H4.8V4.6L2.1 7.3.4 5.6Z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
     </main>
 
     <footer class="hs-proof">
