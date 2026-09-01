@@ -264,7 +264,6 @@
 <footer>
   <div>Data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
   <div id="footLink"></div>
-  <div><a href="#" id="showHero">landing page</a></div>
 </footer>
 
 </div>
@@ -892,8 +891,6 @@ heroStage.addEventListener("click", function(e){
   var b = e.target.closest("[data-enter]");
   if (b) heroEnter(b.getAttribute("data-enter"));
 });
-document.getElementById("showHero").addEventListener("click", function(e){ e.preventDefault(); heroShow(); });
-
 /* ---------- boot ---------- */
 load(); render();
 var heroSeen = false;
