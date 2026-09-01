@@ -188,7 +188,8 @@
   #heroStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #heroStage .stage-gif{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #bgStage{position:fixed;inset:0;z-index:0}
-  #bgStage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #bgStage img,#bgStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:blur(1.6px) saturate(1.04);transform:scale(1.02)}
   #feedMon{position:fixed;right:14px;bottom:36px;z-index:5;width:210px;border-radius:6px;border:2px solid #2c333c;
     background:#090e14;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.55), inset 0 0 12px rgba(90,180,255,.06)}
   #feedMon img{display:block;width:100%;height:118px;object-fit:cover}
@@ -240,7 +241,7 @@
 </style>
 </head>
 <body>
-<div id="bgStage" aria-hidden="true"><img id="bgImg" alt="" onerror="this.style.display='none'" onload="this.style.display=''"></div>
+<div id="bgStage" aria-hidden="true"><video id="bgImg" autoplay muted loop playsinline onerror="this.style.display='none'"></video></div>
 <div id="feedMon" hidden><span class="fm-label" id="feedLabel">LIVE</span><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
 <div id="statusBar"><span id="sbRace"></span><span id="sbInfo"></span><span class="sb-spacer"></span><span class="sb-live">&#9679; LIVE</span><span id="sbClock" class="mono"></span></div>
 <div class="wrap">
@@ -375,7 +376,7 @@ function allLaps(r){
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
 var GIFS = {
-  home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.gif"],
+  home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4"],
   setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
   strategy:    ["https://media.giphy.com/media/QOVipuxpjZoBoUNDGt/giphy.gif"],
   highlights:  ["https://media.giphy.com/media/Uryw0ZBmHC0iA/giphy.gif",
