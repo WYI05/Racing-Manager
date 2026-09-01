@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Racing Manager</title>
-<link rel="icon" href="assets/logo.png?v=3">
+<link rel="icon" href="assets/favicon.svg?v=4" type="image/svg+xml">
+<link rel="alternate icon" href="assets/logo.png?v=4">
 <meta name="description" content="Multi-race pit wall manager: quali times, lap logging, stint records, rival positions, and analysis.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
-    --bg:#0a0d12; --panel:#1b1b1e; --panel-2:#242428; --field:#141417;
+    --bg:#0a0d12; --panel:rgba(24,24,28,.82); --panel-2:rgba(255,255,255,.06); --field:rgba(9,10,14,.72);
     --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.06); --ring:rgba(214,228,255,.12);
     --ink:#f2f3f5; --ink-dim:#98999C; --ink-faint:#6f7076;
     --accent:#F49D70; --accent-soft:#FBBC94; --accent-deep:#E88654;
@@ -66,7 +67,7 @@
   .tabs button.on{color:var(--accent-soft);border-color:rgba(244,157,112,.45);background:var(--chip-grad-hover)}
 
   section.pane{background:var(--panel);border:0;border-radius:18px;padding:22px 24px 26px;margin-bottom:26px;
-    box-shadow:inset 0 0 0 1px var(--ring), 0 18px 50px rgba(0,0,0,.28)}
+    box-shadow:inset 0 0 0 1px var(--ring), 0 18px 50px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(22px) saturate(112%);backdrop-filter:blur(22px) saturate(112%)}
   .pane h2{font-size:17px;font-weight:600;color:var(--ink);margin-bottom:10px}
   .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
 
@@ -140,8 +141,11 @@
   #heroStage.bye{opacity:0;pointer-events:none}
   #heroStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #heroStage .stage-gif{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  .pane-gif{float:right;height:76px;border-radius:10px;margin:0 0 10px 16px;box-shadow:inset 0 0 0 1px rgba(214,228,255,.12),0 6px 18px rgba(0,0,0,.3)}
-  @media (max-width:640px){.pane-gif{height:56px}}
+  #bgStage{position:fixed;inset:0;z-index:0}
+  #bgStage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .bg-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.86),rgba(10,13,18,.74) 45%,rgba(10,13,18,.9))}
+  .wrap{position:relative;z-index:1}
+  .wrap header,.wrap footer{text-shadow:0 1px 10px rgba(0,0,0,.55)}
   #heroStage .hs-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.55),rgba(10,13,18,.25) 40%,rgba(10,13,18,.6))}
   #heroStage .hs-frame{position:absolute;inset:0;display:flex;flex-direction:column;padding:clamp(20px,3.4vh,44px) clamp(24px,4.2vw,60px) clamp(22px,4.4vh,56px)}
   #heroStage button{background:none;border:0;color:inherit;padding:0}
@@ -179,6 +183,7 @@
 </style>
 </head>
 <body>
+<div id="bgStage" aria-hidden="true"><img id="bgImg" alt="" onerror="this.style.display='none'" onload="this.style.display=''"><div class="bg-shade"></div></div>
 <div id="heroStage" hidden>
   <video autoplay muted loop playsinline
     src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
@@ -353,7 +358,6 @@ var GIFS = {
 };
 var GIF_PICK = {};
 Object.keys(GIFS).forEach(function(k){ GIF_PICK[k] = GIFS[k][Math.floor(Math.random() * GIFS[k].length)]; });
-function gif(name){ return '<img class="pane-gif" loading="lazy" src="' + GIF_PICK[name] + '" alt="" onerror="this.remove()">'; }
 function tgtPill(avgMs){
   var tgt = parseLap(cur().meta.targetLap);
   if (!tgt || avgMs == null) return "";
@@ -387,7 +391,7 @@ function renderTabs(){
 /* ---------- SETUP ---------- */
 function paneSetup(){
   var r = cur(), m = r.meta;
-  var h = gif('setup') + '<h2>Race setup</h2><div class="grid2">'
+  var h = '<h2>Race setup</h2><div class="grid2">'
     + fld("Event name","event",m.event,"text","e.g. Vegas 3H Endurance")
     + fld("Team name","name",m.name,"text","")
     + fld("Track","track",m.track,"text","")
@@ -418,7 +422,7 @@ function fld(label, key, val, type, ph){
 /* ---------- STRATEGY ---------- */
 function paneStrategy(){
   var r = cur(), m = r.meta, n = m.stints;
-  var h = gif('strategy') + '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
+  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
   h += '<div class="plan-row">';
   for (var i = 0; i < n; i++){
     var d = driverById(r, r.plan[i]);
@@ -467,7 +471,7 @@ function paneStrategy(){
 /* ---------- QUALI ---------- */
 function paneQuali(){
   var r = cur();
-  var h = gif('highlights') + '<h2>Qualifying</h2><p class="hint">Log every push lap per driver — enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>. Best lap is picked automatically.</p>';
+  var h = '<h2>Qualifying</h2><p class="hint">Log every push lap per driver — enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>. Best lap is picked automatically.</p>';
   h += '<div class="grid2" style="margin-top:12px;align-items:start">';
   r.drivers.forEach(function(d){
     var times = r.quali.times[d.id] || [];
@@ -491,7 +495,7 @@ function paneQuali(){
 /* ---------- RACE ---------- */
 function paneRace(){
   var r = cur(), m = r.meta;
-  var h = gif('onboard') + '<h2>Race</h2>';
+  var h = '<h2>Race</h2>';
   /* timers */
   h += '<div class="tools-row">';
   var rem = cd.running ? (cd.endAt - Date.now())/1000 : m.stintMin*60;
@@ -552,7 +556,7 @@ function paneRace(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.meta.stints;
-  var h = gif('champagne') + '<h2>Rivals &amp; positions</h2><p class="hint">Enter each team’s position at the end of every stint. Your team is the first row.</p>';
+  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each team’s position at the end of every stint. Your team is the first row.</p>';
   h += '<div class="btn-row" style="margin:10px 0"><input type="text" id="rivName" placeholder="rival team name" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
@@ -605,7 +609,7 @@ function posChart(r){
 /* ---------- ANALYSIS ---------- */
 function paneAnalysis(){
   var r = cur(), laps = allLaps(r);
-  var h = gif('celebration') + '<h2>Analysis</h2>';
+  var h = '<h2>Analysis</h2>';
   if (!laps.length){
     var manual = r.stints.map(stintBest).filter(Boolean);
     h += '<p class="hint">Log laps in the Race tab (stopwatch or typed) and this page fills itself in.' + (manual.length ? ' Best recorded stint time so far: <span class="mono best">' + fmtLap(Math.min.apply(null, manual)) + '</span>.' : "") + '</p>';
@@ -691,6 +695,9 @@ function render(){
     : tab === "race" ? paneRace()
     : tab === "rivals" ? paneRivals()
     : paneAnalysis();
+  var bgKey = {setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", rivals:"champagne", analysis:"celebration"}[tab];
+  var bg = document.getElementById("bgImg");
+  if (bg && GIF_PICK[bgKey] && bg.getAttribute("src") !== GIF_PICK[bgKey]) bg.src = GIF_PICK[bgKey];
   save();
 }
 
