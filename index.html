@@ -174,6 +174,16 @@
   .tile .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:600;margin-top:3px}
   .tile .s{font-size:12px;color:var(--ink-dim)}
 
+  .cmv{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .cmv-ring{width:340px;max-width:100%;flex:none}
+  .cmv-tower{flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px}
+  .tw-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;background:#0d1117;border:1px solid #262c35;border-radius:3px;padding:4px 9px;color:#c7d1dc}
+  .tw-row.us{border-color:rgba(244,157,112,.6);background:#171009}
+  .tw-pos{width:18px;text-align:center;font-weight:700;color:#fff;background:#262c35;border-radius:2px}
+  .tw-row.us .tw-pos{background:rgba(244,157,112,.85);color:#1a0e05}
+  .tw-tag{font-weight:700;letter-spacing:.08em;color:#aeb8c4;width:34px}
+  .tw-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8d99a6}
+  .tw-row .up{color:#41d98d}.tw-row .dn{color:#ff5a5a}.tw-row .fl{color:#6f7076}
   .chart-wrap{overflow-x:auto}
   .chart-wrap svg{min-width:560px;width:100%;height:auto;display:block}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0 2px;font-size:12.5px;color:var(--ink-dim)}
@@ -383,6 +393,7 @@ var GIFS = {
   highlights:  ["https://media.giphy.com/media/Uryw0ZBmHC0iA/giphy.gif",
                 "https://media.giphy.com/media/5uz1LWmcYxLiM/giphy.gif"],
   onboard:     ["https://media.giphy.com/media/AFtIhlHAmk7mZtGWGb/giphy.gif"],
+  map:         ["https://media.giphy.com/media/5uz1LWmcYxLiM/giphy.gif"],
   champagne:   ["https://media.giphy.com/media/NSI5daZGbVYJfzXbZo/giphy.gif"],
   celebration: ["https://media.giphy.com/media/MFyOkMBGRRuJjJ6flU/giphy.gif",
                 "https://media.giphy.com/media/w9Y7z2qudgYgw/giphy.gif"]
@@ -401,7 +412,7 @@ var tab = "home";
 var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
 var cd = { running:false, endAt:0 };                    // countdown
-var TABS = [["setup","Setup"],["strategy","Strategy"],["quali","Quali"],["race","Race"],["rivals","Rivals"],["analysis","Analysis"]];
+var TABS = [["setup","Setup"],["strategy","Strategy"],["quali","Quali"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"]];
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -585,6 +596,101 @@ function paneRace(){
   return h;
 }
 
+/* ---------- MAP (circle viewer + pit window) ---------- */
+function raceStart(r){
+  if (!r.meta.date || !r.meta.green) return null;
+  var t = new Date(r.meta.date + "T" + r.meta.green + ":00");
+  return isNaN(t.getTime()) ? null : t.getTime();
+}
+function raceState(r){
+  var st = raceStart(r), total = r.meta.stints * r.meta.stintMin * 60000;
+  if (st == null) return {live:false, elapsed:null, stint:0, pre:null};
+  var el = Date.now() - st;
+  if (el < 0) return {live:false, elapsed:null, stint:0, pre:-el};
+  if (el >= total) return {live:false, elapsed:total, stint:r.meta.stints, done:true};
+  return {live:true, elapsed:el, stint:Math.floor(el/(r.meta.stintMin*60000))+1};
+}
+function fmtHMS(ms){ var s=Math.max(0,Math.floor(ms/1000)); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
+function latestPositions(r){
+  var teams = [{name:r.meta.name||"US", us:true, pos:r.ourPos}].concat(r.rivals.map(function(rv){ return {name:rv.name, us:false, pos:rv.pos}; }));
+  var out = [];
+  teams.forEach(function(t){
+    var p = null, si = -1;
+    for (var i = r.meta.stints-1; i >= 0; i--){ var v = parseInt(t.pos[i],10); if (!isNaN(v)){ p = v; si = i; break; } }
+    var prev = null;
+    if (si > 0){ for (var j = si-1; j >= 0; j--){ var w = parseInt(t.pos[j],10); if (!isNaN(w)){ prev = w; break; } } }
+    if (p != null) out.push({name:t.name, us:t.us, pos:p, delta: prev == null ? 0 : (prev - p)});
+  });
+  out.sort(function(a,b){ return a.pos - b.pos; });
+  return out;
+}
+function polarPt(r, deg){ var a = (deg-90)*Math.PI/180; return [170 + r*Math.cos(a), 170 + r*Math.sin(a)]; }
+function arcPath(r, a0, a1){
+  var p0 = polarPt(r, a0), p1 = polarPt(r, a1);
+  return "M " + p0[0].toFixed(1) + " " + p0[1].toFixed(1) + " A " + r + " " + r + " 0 " + ((a1-a0) > 180 ? 1 : 0) + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1);
+}
+function paneMap(){
+  var r = cur(), n = r.meta.stints, rs = raceState(r);
+  var h = '<h2>Circle map viewer</h2><div class="cmv">';
+  var pos = latestPositions(r);
+  h += '<div class="cmv-tower">';
+  if (pos.length){
+    pos.forEach(function(t){
+      var d = t.delta > 0 ? '<span class="up">&#9650;' + t.delta + '</span>'
+            : t.delta < 0 ? '<span class="dn">&#9660;' + (-t.delta) + '</span>' : '<span class="fl">&ndash;</span>';
+      h += '<div class="tw-row' + (t.us ? ' us' : '') + '"><span class="tw-pos">' + t.pos + '</span><span class="tw-tag">' + esc(t.name.slice(0,3).toUpperCase()) + '</span><span class="tw-name">' + esc(t.name) + '</span>' + d + '</div>';
+    });
+  } else h += '<p class="hint">Enter stint positions in the Rivals tab to populate the tower and the tags on the ring.</p>';
+  h += '</div>';
+
+  var R = 120, seg = 360/n, gap = Math.min(6, seg*0.18);
+  var s = '<svg viewBox="0 0 340 340" class="cmv-ring" role="img" aria-label="Race progress ring">';
+  s += '<circle cx="170" cy="170" r="' + R + '" fill="none" stroke="#161b23" stroke-width="26"/>';
+  for (var i = 0; i < n; i++){
+    var st_ = r.stints[i], drv = st_.d || r.plan[i];
+    var col = drv && driverById(r, drv) ? dcol(r, drv).mark : "#2a313c";
+    var op = rs.live ? (i+1 < rs.stint ? .95 : i+1 === rs.stint ? 1 : .3) : .75;
+    var w = (rs.live && i+1 === rs.stint) ? 26 : 18;
+    s += '<path d="' + arcPath(R, i*seg + gap/2, (i+1)*seg - gap/2) + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" opacity="' + op + '"><title>S' + (i+1) + (drv && driverById(r, drv) ? " \u2014 " + esc(driverById(r, drv).name) : "") + '</title></path>';
+    var lp = polarPt(R + 26, i*seg + seg/2);
+    s += '<text x="' + lp[0].toFixed(1) + '" y="' + (lp[1]+3).toFixed(1) + '" text-anchor="middle" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="9">S' + (i+1) + '</text>';
+  }
+  if (pos.length){
+    var m = pos.length;
+    pos.forEach(function(t, i2){
+      var tp = polarPt(R - 36, i2 * (360/m));
+      var col2 = t.us ? "#F49D70" : "#8a94a3";
+      s += '<g><rect x="' + (tp[0]-22).toFixed(1) + '" y="' + (tp[1]-9).toFixed(1) + '" width="44" height="18" rx="2" fill="#0c1017" stroke="' + col2 + '" stroke-width="1.2"/>'
+        + '<text x="' + (tp[0]-15).toFixed(1) + '" y="' + (tp[1]+3.5).toFixed(1) + '" fill="#e8edf4" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="600">' + t.pos + '</text>'
+        + '<text x="' + (tp[0]).toFixed(1) + '" y="' + (tp[1]+3.5).toFixed(1) + '" fill="' + col2 + '" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="700">' + esc(t.name.slice(0,3).toUpperCase()) + '</text></g>';
+    });
+  }
+  s += '<text x="170" y="160" text-anchor="middle" fill="#e8edf4" font-family="IBM Plex Mono,monospace" font-size="21" font-weight="700" id="cmvStint">'
+    + (rs.live ? "STINT " + rs.stint + "/" + n : rs.done ? "FINISH" : n + " \u00d7 " + r.meta.stintMin + "\u2032") + '</text>';
+  s += '<text x="170" y="188" text-anchor="middle" fill="#F49D70" font-family="IBM Plex Mono,monospace" font-size="17" font-weight="600" id="cmvClock">'
+    + (rs.live || rs.done ? fmtHMS(rs.elapsed) : (rs.pre != null ? "T-" + fmtHMS(rs.pre) : "--:--:--")) + '</text>';
+  s += '</svg>';
+  h += s + '</div>';
+
+  h += '<h2>Pit window</h2><div class="chart-wrap">';
+  var W = 720, HH = 110, L = 30, Rm = 14, total = n * r.meta.stintMin;
+  var xs = function(min){ return L + (min/total) * (W - L - Rm); };
+  var pw = '<svg viewBox="0 0 ' + W + ' ' + HH + '" role="img" aria-label="Rotation timeline">';
+  for (var k = 0; k < n; k++){
+    var stk = r.stints[k], dk = stk.d || r.plan[k];
+    var ck = dk && driverById(r, dk) ? dcol(r, dk).mark : "#2a313c";
+    pw += '<rect x="' + xs(k*r.meta.stintMin).toFixed(1) + '" y="34" width="' + (xs((k+1)*r.meta.stintMin) - xs(k*r.meta.stintMin) - 2).toFixed(1) + '" height="30" fill="' + ck + '" opacity=".82"><title>S' + (k+1) + '</title></rect>';
+    if (k > 0) pw += '<rect x="' + (xs(k*r.meta.stintMin) - 2).toFixed(1) + '" y="18" width="4" height="62" fill="#d4af37" opacity=".55"/>';
+    pw += '<text x="' + xs(k*r.meta.stintMin + r.meta.stintMin/2).toFixed(1) + '" y="53" text-anchor="middle" fill="#0a0d12" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="700">S' + (k+1) + '</text>';
+  }
+  for (var t2 = 0; t2 <= total; t2 += 30) pw += '<text x="' + xs(t2).toFixed(1) + '" y="98" text-anchor="middle" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="9">' + t2 + "\u2032" + '</text>';
+  pw += '<line id="pwNow" x1="0" x2="0" y1="12" y2="86" stroke="#f2f3f5" stroke-width="2"' + (rs.live ? ' transform="translate(' + xs(rs.elapsed/60000).toFixed(1) + ',0)"' : ' visibility="hidden"') + '/>';
+  pw += '</svg></div>';
+  h += pw;
+  h += '<p class="hint">Gold bands mark the kart-rotation windows. The ring and tower read from the Strategy plan, Race records, and Rivals positions; the center clock and NOW cursor go live at the green flag.</p>';
+  return h;
+}
+
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.meta.stints;
@@ -729,9 +835,10 @@ function render(){
     : tab === "strategy" ? paneStrategy()
     : tab === "quali" ? paneQuali()
     : tab === "race" ? paneRace()
+    : tab === "map" ? paneMap()
     : tab === "rivals" ? paneRivals()
     : paneAnalysis();
-  var bgKey = {home:"home", setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", rivals:"champagne", analysis:"celebration"}[tab];
+  var bgKey = {home:"home", setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration"}[tab];
   var bg = document.getElementById("bgImg"), feed = document.getElementById("feedMon");
   if (home){
     feed.hidden = true;
@@ -902,6 +1009,18 @@ function startCountdown(){
 setInterval(function(){
   var sc = document.getElementById("sbClock");
   if (sc) sc.textContent = new Date().toTimeString().slice(0,8);
+  if (tab === "map"){
+    var rM = cur(), rsM = raceState(rM);
+    var ckM = document.getElementById("cmvClock");
+    if (ckM) ckM.textContent = rsM.live || rsM.done ? fmtHMS(rsM.elapsed) : (rsM.pre != null ? "T-" + fmtHMS(rsM.pre) : "--:--:--");
+    var stM = document.getElementById("cmvStint");
+    if (stM && rsM.live) stM.textContent = "STINT " + rsM.stint + "/" + rM.meta.stints;
+    var nl = document.getElementById("pwNow");
+    if (nl && rsM.live){
+      nl.setAttribute("visibility","visible");
+      nl.setAttribute("transform","translate(" + (30 + (rsM.elapsed/60000)/(rM.meta.stints*rM.meta.stintMin)*(720-30-14)).toFixed(1) + ",0)");
+    }
+  }
   if (tab !== "race") return;
   var face = document.getElementById("cdFace"), pr = document.getElementById("cdPrompt");
   if (face && cd.running){
