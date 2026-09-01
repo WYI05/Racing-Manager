@@ -3,453 +3,666 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SABLE Vegas Race Book</title>
+<title>SABLE Racing Manager</title>
+<meta name="description" content="Multi-race pit wall manager: quali times, lap logging, stint records, rival positions, and analysis.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
     --bg:#0e1218; --panel:#161c25; --panel-2:#1c2430; --line:#2a3442;
     --ink:#e9eef5; --ink-dim:#9fadbf; --ink-faint:#6b7889;
-    --amber:#ffb000; --amber-deep:#cc8a00;
-    --red:#ff5a5a; --green:#41d98d; --cyan:#4fc3f7;
-    --will:#ffb000; --matt:#4fc3f7;
+    --amber:#ffb000; --red:#ff5a5a; --green:#41d98d; --cyan:#4fc3f7;
     --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
     --disp:"Saira Condensed","Arial Narrow",Impact,sans-serif;
     --body:"Archivo","Helvetica Neue",Arial,sans-serif;
   }
   html{color-scheme:dark}
-  body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;margin:0;padding:0 16px 80px}
-  .wrap{max-width:980px;margin:0 auto}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;margin:0;padding:0 14px 90px}
+  .wrap{max-width:1060px;margin:0 auto}
   a{color:var(--cyan)}
-  h1,h2,h3{font-family:var(--disp);text-transform:uppercase;letter-spacing:.02em;text-wrap:balance;margin:0}
-  p{margin:.5em 0}
+  h1,h2,h3{font-family:var(--disp);text-transform:uppercase;letter-spacing:.02em;margin:0}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-  /* Masthead */
-  header{padding:34px 0 20px;border-bottom:3px solid var(--amber)}
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
-  h1{font-size:clamp(42px,7vw,68px);font-weight:800;line-height:.95}
-  h1 .thin{color:var(--ink-dim);font-weight:600}
-  .subhead{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
-  .subhead b{color:var(--ink);font-weight:600}
+  /* Header */
+  header{padding:22px 0 14px;border-bottom:3px solid var(--amber);display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end}
+  .brand .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
+  .brand h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:.95}
+  .brand h1 .thin{color:var(--ink-dim);font-weight:600}
+  .hdr-tools{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
-  /* Countdown strip */
-  .clocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:20px 0 8px}
-  .clock{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
-  .clock.crit{border-color:var(--red);background:linear-gradient(0deg,rgba(255,90,90,.08),rgba(255,90,90,.08)),#161c25}
-  .clock .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
-  .clock.crit .lbl{color:var(--red)}
-  .clock .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;margin-top:4px}
-  .clock .sub{font-size:13px;color:var(--ink-faint);margin-top:2px}
+  select,input,textarea,button{font-family:inherit;font-size:14px;color:var(--ink)}
+  select,input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],textarea{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:7px 10px}
+  input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+  input[type=number]{font-family:var(--mono)}
+  textarea{width:100%;min-height:70px;resize:vertical}
+  ::placeholder{color:var(--ink-faint)}
 
-  /* Panels */
-  section{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:26px 0;overflow:hidden}
-  .sec-head{display:flex;align-items:baseline;gap:14px;padding:16px 22px 12px;border-bottom:1px solid var(--line)}
-  .sec-head h2{font-size:26px;font-weight:700}
-  .sec-head .tag{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-left:auto}
-  .sec-body{padding:18px 22px 22px}
-  .sec-body>p:first-child{margin-top:0}
-  section.alert{border-color:var(--red)}
-  section.alert .sec-head{background:rgba(255,90,90,.09);border-bottom-color:var(--red)}
-  section.alert h2{color:var(--red)}
+  button{cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);padding:8px 14px}
+  button:hover{border-color:var(--amber);color:var(--amber)}
+  button.primary{background:var(--amber);border-color:var(--amber);color:#1a1205;font-weight:700}
+  button.primary:hover{filter:brightness(1.08);color:#1a1205}
+  button.danger{color:var(--red)}
+  button.danger:hover{border-color:var(--red)}
+  button.mini{padding:3px 9px;font-size:12px}
+  button.ghost{background:none}
 
-  .lede{font-size:18px;line-height:1.6;max-width:64ch}
-  .note{color:var(--ink-dim);font-size:14px;max-width:70ch}
-  .callout{border-left:3px solid var(--amber);background:var(--panel-2);padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;max-width:74ch}
-  .callout.red{border-left-color:var(--red)}
-  .callout.green{border-left-color:var(--green)}
-  .callout b{color:var(--ink)}
+  /* Tabs */
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 0}
+  .tabs button{font-family:var(--disp);text-transform:uppercase;font-size:17px;letter-spacing:.04em;padding:8px 18px;border-radius:6px 6px 0 0;border-bottom:none;color:var(--ink-dim)}
+  .tabs button.on{background:var(--panel);color:var(--amber);border-color:var(--line)}
 
-  /* Fact grid */
-  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:6px 0 4px}
-  .fact{background:var(--panel-2);padding:12px 14px}
-  .fact .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
-  .fact .v{font-family:var(--disp);font-size:22px;font-weight:700;margin-top:2px}
-  .fact .v small{font-size:14px;color:var(--ink-dim);font-family:var(--body);font-weight:500}
+  section.pane{background:var(--panel);border:1px solid var(--line);border-radius:0 8px 8px 8px;padding:20px 22px 24px;margin-bottom:26px}
+  .pane h2{font-size:22px;color:var(--ink);margin-bottom:10px}
+  .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
+
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 16px}
+  .field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+  .field input,.field select{width:100%}
 
   /* Tables */
-  .tbl-wrap{overflow-x:auto}
+  .tbl-wrap{overflow-x:auto;margin:12px 0}
   table{border-collapse:collapse;width:100%;font-size:14px}
-  th{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);text-align:left;padding:8px 12px;border-bottom:2px solid var(--line);white-space:nowrap}
-  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-  td.mono, .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-dim);text-align:left;padding:7px 8px;border-bottom:2px solid var(--line);white-space:nowrap}
+  td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td input,td select{width:100%;min-width:56px;padding:5px 7px}
+  td input.num{max-width:74px;text-align:center;font-family:var(--mono)}
   tr:last-child td{border-bottom:none}
-  .pill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;padding:2px 9px;border-radius:999px;white-space:nowrap}
-  .pill.amber{background:rgba(255,176,0,.15);color:var(--amber)}
-  .pill.red{background:rgba(255,90,90,.15);color:var(--red)}
-  .pill.green{background:rgba(65,217,141,.15);color:var(--green)}
-  .pill.cyan{background:rgba(79,195,247,.15);color:var(--cyan)}
-  .pill.dim{background:rgba(159,173,191,.12);color:var(--ink-dim)}
+  .best{color:var(--amber);font-weight:600}
 
-  /* Day timeline */
-  .dayline{list-style:none;margin:8px 0 0;padding:0}
-  .dayline li{display:grid;grid-template-columns:92px 1fr;gap:14px;padding:10px 0;border-bottom:1px dashed var(--line)}
-  .dayline li:last-child{border-bottom:none}
-  .dayline time{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;color:var(--amber)}
-  .dayline .what b{display:block}
-  .dayline .what span{color:var(--ink-dim);font-size:14px}
-  .dayline li.race time{color:var(--green)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;padding:2px 10px;border-radius:999px;background:rgba(159,173,191,.12);color:var(--ink-dim);white-space:nowrap}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
 
-  /* Stint planner */
-  .stint-row{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin:14px 0 10px}
-  .stint{border:1px solid var(--line);border-radius:6px;padding:10px 6px 8px;text-align:center;cursor:pointer;background:var(--panel-2);transition:transform .08s ease;user-select:none}
-  .stint:hover{transform:translateY(-2px)}
-  .stint:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .stint .n{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint)}
-  .stint .t{font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:2px}
-  .stint .who{font-family:var(--disp);font-size:24px;font-weight:800;line-height:1.1;margin:4px 0 2px}
-  .stint.will{border-color:var(--will);background:rgba(255,176,0,.10)}
-  .stint.will .who{color:var(--will)}
-  .stint.matt{border-color:var(--matt);background:rgba(79,195,247,.10)}
-  .stint.matt .who{color:var(--matt)}
-  .planner-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
-  .planner-bar .totals{font-family:var(--mono);font-size:13px;margin-right:auto}
-  .totals .w{color:var(--will);font-weight:600}
-  .totals .m{color:var(--matt);font-weight:600}
-  button.preset{font-family:var(--mono);font-size:12px;letter-spacing:.06em;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:7px 12px;cursor:pointer}
-  button.preset:hover{border-color:var(--amber);color:var(--amber)}
-  button.preset:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .plan-warn{font-size:13px;color:var(--red);font-family:var(--mono);min-height:1.4em;margin-top:8px}
-  .plan-ok{color:var(--green)}
+  .callout{border-left:3px solid var(--amber);background:var(--panel-2);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;max-width:80ch;font-size:14px}
 
-  /* Board signals */
-  .board{display:inline-block;font-family:var(--mono);font-weight:600;background:#05070a;border:2px solid #333d4b;color:var(--amber);border-radius:4px;padding:3px 10px;letter-spacing:.1em;white-space:nowrap}
+  /* Timers */
+  .tools-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin:6px 0 16px}
+  .tool{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .tool h3{font-size:17px;color:var(--ink-dim);margin-bottom:8px}
+  .clockface{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:42px;font-weight:600;line-height:1}
+  .clockface.warn{color:var(--amber)}
+  .clockface.crit{color:var(--red)}
+  .board-prompt{font-family:var(--mono);font-size:13px;letter-spacing:.1em;margin:8px 0 10px;min-height:1.3em;color:var(--amber)}
+  .board-prompt.crit{color:var(--red);animation:flash 1s steps(2) infinite}
+  @keyframes flash{50%{opacity:.35}}
+  @media (prefers-reduced-motion:reduce){.board-prompt.crit{animation:none}}
+  .btn-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
-  /* Checklist */
-  .check{list-style:none;margin:0;padding:0}
-  .check li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line)}
-  .check li:last-child{border-bottom:none}
-  .check input{width:18px;height:18px;margin-top:3px;accent-color:var(--green);flex:none;cursor:pointer}
-  .check label{cursor:pointer}
-  .check label b{color:var(--ink)}
-  .check label span{color:var(--ink-dim);font-size:14px;display:block}
-  .check li.done label{opacity:.45;text-decoration:line-through}
-  .check .due{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;white-space:nowrap;margin-left:auto;padding-top:4px}
+  /* Stint expand */
+  tr.laprow>td{background:rgba(255,176,0,.04);padding:12px 14px}
+  .laps-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .lap-chip{font-family:var(--mono);font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:3px 7px;display:inline-flex;gap:7px;align-items:center}
+  .lap-chip.best{border-color:var(--amber);color:var(--amber)}
+  .lap-chip button{border:none;background:none;padding:0;color:var(--ink-faint);font-size:12px;line-height:1}
+  .lap-chip button:hover{color:var(--red)}
 
-  .qa{margin:0;padding:0;list-style:none;counter-reset:q}
-  .qa li{counter-increment:q;display:grid;grid-template-columns:40px 1fr;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
-  .qa li:last-child{border-bottom:none}
-  .qa li::before{content:"Q" counter(q);font-family:var(--mono);font-weight:600;color:var(--amber);font-size:13px;padding-top:2px}
-  .qa b{display:block}
-  .qa span{color:var(--ink-dim);font-size:14px}
+  /* Stats */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:8px 0 14px}
+  .tile{background:var(--panel-2);padding:12px 14px}
+  .tile .k{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+  .tile .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;font-weight:600;margin-top:3px}
+  .tile .s{font-size:12px;color:var(--ink-dim)}
 
-  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 24px}
-  @media (max-width:720px){
-    .stint-row{grid-template-columns:repeat(3,1fr)}
-    .sec-head{flex-wrap:wrap}
-  }
-  @media (prefers-reduced-motion:reduce){
-    .stint{transition:none}
-    .stint:hover{transform:none}
-  }
+  .chart-wrap{overflow-x:auto}
+  .chart-wrap svg{min-width:560px;width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0 2px;font-size:13px;color:var(--ink-dim)}
+  .legend .pill{background:none;padding:0}
+
+  footer{margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 22px}
+  .hidden{display:none}
+  @media (max-width:640px){ section.pane{padding:14px 12px 18px} body{font-size:14px} }
 </style>
 </head>
 <body>
-
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">Pit wall race book &middot; SWS Endurance Cup &middot; US-VEG-142967</div>
-  <h1>SABLE Motorsports <span class="thin">/ Vegas 3&nbsp;Hours</span></h1>
-  <div class="subhead">
-    <div><b>Vegas Superkarts</b> (Exotics Racing) &middot; Las Vegas, NV &middot; Outdoor</div>
-    <div>Sat <b>Sep 5, 2026</b> &middot; Green flag <b>7:00 PM PT</b></div>
-    <div><b>William Yi</b> + <b>Matthew Hergenroeder</b></div>
-    <div>Sodi RT10 &middot; GX 270cc &middot; $420 / team</div>
+  <div class="brand">
+    <div class="eyebrow">Pit wall data &middot; multi-race</div>
+    <h1>SABLE <span class="thin">Racing Manager</span></h1>
   </div>
-  <div class="clocks">
-    <div class="clock crit">
-      <div class="lbl">Payment + full registration due</div>
-      <div class="val" id="cd-pay">&mdash;</div>
-      <div class="sub">Thu Sep 4, 4:00 PM PT &middot; unpaid teams are removed</div>
-    </div>
-    <div class="clock">
-      <div class="lbl">Green flag</div>
-      <div class="val" id="cd-race">&mdash;</div>
-      <div class="sub">Sat Sep 5, 7:00 PM PT &middot; 9 &times; 20 min stints</div>
-    </div>
+  <div class="hdr-tools">
+    <select id="raceSel" aria-label="Select race"></select>
+    <button id="newRace" class="mini">+ New race</button>
+    <button id="exportBtn" class="mini ghost">Export</button>
+    <button id="importBtn" class="mini ghost">Import</button>
+    <input type="file" id="importFile" accept="application/json" class="hidden">
   </div>
 </header>
 
-<section class="alert" id="critical">
-  <div class="sec-head"><h2>Read this first &mdash; the race is won on Sep 4</h2><span class="tag">Deadlines</span></div>
-  <div class="sec-body">
-    <p class="lede">The single most dangerous detail in the event sheet: the entry list closes a day <em>before</em> the date on the flyer. "Deadline for preregistration 2026-09-05" is not the deadline that matters.</p>
-    <div class="callout red"><b>Full payment ($420, credit card, call 702-405-7223) is due Thursday Sep 4 by 4:00 PM PT.</b> Unpaid teams are removed from the registration. Seats are limited to 16 teams.</div>
-    <div class="callout red"><b>Every driver must be individually registered before the race.</b> Under SWS rules that means: William and Matthew each need their own SWS account (DIN) with a verified email at sodiwseries.com, both must be members of the SABLE Motorsports team, and the team manager must pre-register the team <em>with both drivers named</em> on the event page.</div>
-    <div class="callout"><b>Cancellation bubble:</b> if fewer than 8 teams have signed up by Sep 4, the race can be cancelled &mdash; and the sheet currently shows exactly 8 of 16. Pay early; it helps keep the event alive, and confirm on Sep 4 that the entry count held.</div>
-    <div class="callout"><b>No ghost drivers.</b> If either of you races without an SWS account, the team is scored as having a guest driver and only collects 90% of the points. Two verified DINs = 100%.</div>
-  </div>
-</section>
-
-<section id="format">
-  <div class="sec-head"><h2>The format, decoded</h2><span class="tag">What kind of race this is</span></div>
-  <div class="sec-body">
-    <div class="facts">
-      <div class="fact"><div class="k">Race length</div><div class="v">3h00 <small>= 9 stints</small></div></div>
-      <div class="fact"><div class="k">Stint length</div><div class="v">20 min <small>fixed</small></div></div>
-      <div class="fact"><div class="k">Drivers</div><div class="v">2 <small>5 + 4 split</small></div></div>
-      <div class="fact"><div class="k">Kart</div><div class="v">RT10 <small>GX 270cc</small></div></div>
-      <div class="fact"><div class="k">Kart draw</div><div class="v">Rotation <small>every stint</small></div></div>
-      <div class="fact"><div class="k">Ballast</div><div class="v">Yes <small>target TBC</small></div></div>
-      <div class="fact"><div class="k">Radios</div><div class="v">Banned <small>pit board only</small></div></div>
-      <div class="fact"><div class="k">SWS bonus</div><div class="v">+10 pts <small>3h duration</small></div></div>
-    </div>
-    <p>Three facts define every strategic choice in this race:</p>
-    <p><b>1. Karts rotate every stint.</b> Nobody keeps a good kart and nobody is stuck with a bad one. Machinery averages out over 9 stints, so the race is decided by <em>driver consistency, clean pit rotations, and traffic management</em> &mdash; not by equipment or a hero lap.</p>
-    <p><b>2. Stints are fixed 20-minute blocks.</b> There is no fuel window to play with and no undercut. "Strategy" collapses into three levers you fully control: who drives which stints, how flawlessly you execute 8 rotations, and how you feed information to the driver with no radio.</p>
-    <p><b>3. It's an evening race.</b> Sunset in Las Vegas on Sep 5 is around 7:04 PM &mdash; the green flag drops <em>into</em> the sunset. Stint 1 is driven in low-sun glare, stints 2&ndash;3 in fading twilight, stints 4&ndash;9 fully under floodlights. Whoever starts needs a plan for glare (tear-offs / tinted visor for stint 1 only, clear after); expect grip to improve as the track cools.</p>
-  </div>
-</section>
-
-<section id="machine">
-  <div class="sec-head"><h2>Machine &amp; circuit</h2><span class="tag">Sodi RT10 &middot; Vegas Superkarts</span></div>
-  <div class="sec-body">
-    <div class="facts">
-      <div class="fact"><div class="k">Engine</div><div class="v">GX270 <small>Honda 4-stroke</small></div></div>
-      <div class="fact"><div class="k">Top speed</div><div class="v">~50 mph</div></div>
-      <div class="fact"><div class="k">Steering</div><div class="v">Easy Drive <small>light, responsive</small></div></div>
-      <div class="fact"><div class="k">Seat</div><div class="v">Adjustable <small>check every swap</small></div></div>
-    </div>
-    <p><b>Drive the RT10 like the 4-stroke it is.</b> The Honda GX270 makes torque, not revs &mdash; lap time lives in corner-exit speed, not entry heroics. A slide that feels fast bleeds the exact momentum this engine can't give back on the next straight. Smooth arcs, early throttle, minimum steering input: the EASY DRIVE rack is light enough that over-driving it is the default mistake.</p>
-    <p><b>Draft is a real weapon at ~50 mph.</b> Two identical karts on a long straight: the one in the tow gains. Passing happens at the end of the two longest runs; in the tight sections you hold the inside and wait rather than lunge.</p>
-    <div class="callout"><b>The adjustable seat is a rotation trap.</b> You inherit a different kart every stint, set for whoever drove it last. If you and Matthew run different seat positions, learn the adjustment mechanism during practice, and build "check seat + belts" into every changeover &mdash; a wrong seat position costs tenths every lap for 20 minutes. Ask staff whether they assist with adjustments during rotation.</div>
-
-    <svg viewBox="0 0 340 280" role="img" aria-label="Schematic of the Vegas Superkarts track layout" style="display:block;max-width:440px;margin:18px auto 4px">
-      <path d="M 34 250 L 98 32 Q 105 14 119 25 L 152 118 Q 156 131 169 129 L 262 118 Q 276 116 279 102 L 283 76 Q 285 62 271 60 L 240 58 Q 226 57 228 71 L 232 92 Q 234 106 220 112 L 156 140 Q 144 146 152 156 L 216 180 Q 228 185 222 196 L 190 240 Q 184 250 170 250 Z"
-        fill="none" stroke="#e9eef5" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
-      <line x1="100" y1="243" x2="100" y2="257" stroke="#ffb000" stroke-width="3" stroke-dasharray="3 3"/>
-      <text x="100" y="272" fill="#ffb000" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">S/F</text>
-      <circle cx="66" cy="140" r="4" fill="#ffb000"/>
-      <text x="52" y="128" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="end">longest run &mdash;</text>
-      <text x="52" y="141" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="end">draft &amp; pass</text>
-      <circle cx="112" cy="22" r="4" fill="#ffb000"/>
-      <text x="128" y="18" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10">hairpin &mdash; late apex</text>
-      <circle cx="256" cy="62" r="4" fill="#ffb000"/>
-      <text x="256" y="46" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="middle">loop</text>
-      <circle cx="186" cy="152" r="4" fill="#ffb000"/>
-      <text x="196" y="166" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10">esses &mdash; hold inside</text>
-    </svg>
-    <p class="note" style="text-align:center;margin:0 auto">Schematic traced from the track map &mdash; corner shapes approximate. Verify direction of travel and braking points on the 6:45 PM grid walk.</p>
-    <p><b>Reading the layout:</b> one dominant straight, a tight hairpin at its end, and a middle section of switchbacks. That's a classic "one real passing zone" circuit: set the pass up through the esses by staying close, take it under braking at the hairpin or with the draft into the S/F corner. Defending is cheap here &mdash; a kart on the inside line through the switchbacks is nearly impossible to pass, so track position taken in clean pit rotations is worth more than raw pace in traffic.</p>
-  </div>
-</section>
-
-<section id="schedule">
-  <div class="sec-head"><h2>Race day timeline</h2><span class="tag">Sep 5 &middot; all times PT</span></div>
-  <div class="sec-body">
-    <ul class="dayline">
-      <li><time>5:00 PM</time><div class="what"><b>Registration</b><span>Both drivers check in with ID; have SWS DINs ready. Get weighed for ballast here &mdash; note your assigned ballast.</span></div></li>
-      <li><time>5:30 PM</time><div class="what"><b>Briefing</b><span>This is where the unknowns get answered. Bring the question list below &mdash; pit procedure, penalties, and stint rules are decided here, not in the SWS rulebook.</span></div></li>
-      <li><time>6:00 PM</time><div class="what"><b>Practice / Qualifying &mdash; 30 min</b><span>Sheet says "10 minutes per driver" (written for 3-driver teams). Confirm at briefing how 30 min splits across 2 drivers.</span></div></li>
-      <li><time>6:45 PM</time><div class="what"><b>Grid walk</b><span>Use it: walk the pit entry, kart-swap zone and exit. Agree exactly where the pit board hangs and rehearse the changeover path once on foot.</span></div></li>
-      <li class="race"><time>7:00 PM</time><div class="what"><b>Green flag &mdash; 3-hour race</b><span>9 &times; 20 min stints. Sunset 7:04 PM &mdash; starter takes the glare stint.</span></div></li>
-      <li><time>10:15 PM</time><div class="what"><b>Podium</b><span>Results upload to sodiwseries.com within 10 days; check the team name and both driver names appear on the proof of result.</span></div></li>
-    </ul>
-  </div>
-</section>
-
-<section id="planner">
-  <div class="sec-head"><h2>Stint planner</h2><span class="tag">Tap a stint to swap driver</span></div>
-  <div class="sec-body">
-    <p>Nine stints, two drivers: someone drives five. Give the five to whichever of you is <em>more consistent over 20 minutes</em> (not whoever has the best single lap), and give that same driver the last stint &mdash; stint 9 is where tired teams throw it away. This planner saves on this device, so set it now and pull it up on race day.</p>
-    <div class="stint-row" id="stintRow" role="group" aria-label="Stint assignments"></div>
-    <div class="planner-bar">
-      <div class="totals" id="totals"></div>
-      <button class="preset" data-plan="WMWMWMWMW">Alternate &middot; Will &times;5</button>
-      <button class="preset" data-plan="MWMWMWMWM">Alternate &middot; Matt &times;5</button>
-      <button class="preset" data-plan="WMWMMWWMW">Mid-race doubles</button>
-    </div>
-    <div class="plan-warn" id="planWarn" aria-live="polite"></div>
-    <div class="callout"><b>Default recommendation: pure alternation.</b> You swap karts every stint anyway, so a driver change costs you nothing extra &mdash; and alternating caps every rest gap at 20 minutes, which in Vegas heat is worth more than any theoretical gain from double-stinting. Only double-stint if the briefing reveals that driver changes cost extra time versus a same-driver kart swap.</div>
-    <div class="callout"><b>Confirm at briefing:</b> may the same driver take consecutive stints at all? Some SWS tracks mandate a driver change at every rotation or set a max drive time per driver. If changes are mandatory every stint, alternation is forced and the only decision left is who starts.</div>
-  </div>
-</section>
-
-<section id="quali">
-  <div class="sec-head"><h2>Qualifying plan</h2><span class="tag">6:00 PM &middot; random kart</span></div>
-  <div class="sec-body">
-    <p><b>Don't over-invest here.</b> Your qualifying kart is randomly assigned and you hand it back before the race &mdash; a mega lap in a fast kart or a doomed lap in a slow one, either way it only buys grid position for a 3-hour race with 8 rotations. Worth having, not worth risk.</p>
-    <p>The plan that follows from that:</p>
-    <p><b>Faster qualifier goes second</b> in the session &mdash; track is slightly cooler and more rubbered every minute after 6 PM. Use the first runner's laps as the scout report: kart feel, where the grip is, traffic patterns.</p>
-    <p><b>Hunt clean air, not the perfect lap.</b> With up to 16 teams sharing one track, a traffic-free launch matters more than tenths. Build one out-lap gap, do 2&ndash;3 push laps, and bank it.</p>
-    <p><b>Whoever qualifies does not have to start.</b> Confirm at briefing whether the starting driver is free choice &mdash; if it is, you can give quali to your one-lap driver and the glare-heavy first stint to whoever handles low sun better.</p>
-  </div>
-</section>
-
-<section id="pits">
-  <div class="sec-head"><h2>Rotations &mdash; the 8 moments that decide the race</h2><span class="tag">Kart swap every stint</span></div>
-  <div class="sec-body">
-    <p>With equal machinery and fixed stints, almost all recoverable time lives in the 8 rotations. A rehearsed changeover beats a fast lap every time. Until the briefing defines the exact procedure, build around this default choreography:</p>
-    <div class="tbl-wrap"><table>
-      <tr><th class="mono">T&ndash;5:00</th><td>Incoming driver: last drink done, helmet and gloves on, balaclava set. Stop watching the timing screen.</td></tr>
-      <tr><th class="mono">T&ndash;3:00</th><td>Incoming driver walks to the swap zone. Pit board goes up for the driver on track: <span class="board">3 MIN</span></td></tr>
-      <tr><th class="mono">T&ndash;1:00</th><td>Board: <span class="board">IN NOW</span> (or as the track's rotation signal dictates). Incoming driver at the assigned kart lane.</td></tr>
-      <tr><th class="mono">T&ndash;0:00</th><td>Swap. Outgoing driver <b>carries the ballast handoff</b> if ballast is per-team, confirms belts/seat insert for the new kart, points out any kart issue to staff immediately &mdash; before the new stint starts, not after.</td></tr>
-      <tr><th class="mono">T+2:00</th><td>Outgoing driver drinks first, then debriefs to the board (kart feel, track spots), then rests. Ten of your twenty rest minutes are for recovery, not spectating.</td></tr>
-    </table></div>
-    <div class="callout"><b>Kart handover intel is your only scouting tool.</b> You inherit a different kart every stint &mdash; likely one another team just ran. Agree a 5-second hand signal for "this kart is bad" so the incoming driver knows to adapt the first lap, not discover it in turn 1.</div>
-  </div>
-</section>
-
-<section id="signals">
-  <div class="sec-head"><h2>No radios: the signal book</h2><span class="tag">Agree these before Saturday</span></div>
-  <div class="sec-body">
-    <p>Radios are banned at your track, so the resting driver <em>is</em> the pit wall. Fix one board position on the fence (pick it at the 6:45 grid walk, somewhere on a straight with time to read), show the board for 2 consecutive laps minimum, and keep the vocabulary this small:</p>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Board</th><th>Means</th><th>Notes</th></tr></thead>
-      <tbody>
-        <tr><td><span class="board">P4</span></td><td>Current position</td><td>Show every 3&ndash;4 laps by default</td></tr>
-        <tr><td><span class="board">+2.5</span> / <span class="board">&ndash;4.0</span></td><td>Gap to kart ahead / behind</td><td>Only when a fight is live</td></tr>
-        <tr><td><span class="board">PUSH</span></td><td>Rival in reach &mdash; go now</td><td>Use sparingly or it means nothing</td></tr>
-        <tr><td><span class="board">EASY</span></td><td>Hold position, save energy</td><td>Big gap both ways, or last laps of a stint</td></tr>
-        <tr><td><span class="board">5 MIN</span> / <span class="board">3 MIN</span></td><td>Stint time remaining</td><td>Driver has no clock &mdash; this is essential</td></tr>
-        <tr><td><span class="board">IN NOW</span></td><td>Rotation this lap</td><td>Follow the track's own signal if they run one</td></tr>
-      </tbody>
-    </table></div>
-    <p style="margin-top:14px"><b>Driver-to-pit hand signals</b> (agree these too): raised fist = kart problem, point at rear = engine/brakes, thumbs-up on the straight = all fine, tapping helmet = can't read the board / show again.</p>
-    <div class="callout"><b>Blind window:</b> in the last ~3 minutes of every stint the board is unmanned &mdash; the resting driver is walking to the swap zone. Show position and time <em>before</em> T&ndash;3:00; the driver on track should assume no new information after that.</div>
-  </div>
-</section>
-
-<section id="body">
-  <div class="sec-head"><h2>Ballast, heat, and the human machine</h2><span class="tag">Vegas in September</span></div>
-  <div class="sec-body">
-    <p><b>Ballast is confirmed but the target weight is not published.</b> Call the track and get the equalization number and both of your weights into the plan. If ballast brings you to a fixed combined figure, weight difference between you two stops mattering; if it's stepped (weight classes), know which class each of you lands in before Saturday. Weigh in wearing what you'll drive in.</p>
-    <p><b>Heat is a real opponent.</b> Early-September Las Vegas: ~100&deg;F daytime, still ~90&deg;F at the 7 PM green flag, cooling through the race. Between stints: shade, electrolytes (not just water), helmet off, sit down. Salty snacks between stints, real meal before 4 PM, nothing heavy after. The driver doing 5 stints sweats through 100 minutes of racing &mdash; hydrate starting Friday, not Saturday afternoon.</p>
-    <p><b>Hands and ribs give out before lungs do.</b> 100 minutes of rental-kart steering without power assistance: bring proper karting gloves (two pairs if you have them &mdash; dry pair mid-race feels incredible) and consider a rib protector; the RT10 seat plus 8 different karts' worth of seat fit is a rib bruise generator.</p>
-    <p class="note">Eligibility floor per the event sheet: 15 years old and 120 lbs minimum &mdash; both of you clear it, but bring ID; the track can ask for identity proof against your SWS licence.</p>
-  </div>
-</section>
-
-<section id="points">
-  <div class="sec-head"><h2>What this race is worth (SWS)</h2><span class="tag">Endurance Cup 2026</span></div>
-  <div class="sec-body">
-    <p>Scoring is field-size driven: the winner takes 1,000 + number of SWS teams (so ~1,008&ndash;1,016 pts here), last place takes just the participation floor, a logarithmic curve in between &mdash; plus <b>+10 bonus points to every team</b> for the 3-hour duration. Your season ranking sums your team's 12 best results.</p>
-    <div class="callout"><b>Thinking about SWS International Finals?</b> A 2-driver team can race and score all year but <em>cannot qualify for the Finals</em> &mdash; qualification requires 3&ndash;4 drivers with at least 3 of them having driven 3+ times with the team in 2026. If that's an ambition, recruit driver #3 now: between Aug 1 and Dec 31 you can only <em>add</em> drivers to the team (additions are irreversible, no deletions), and they'd need 3 races before New Year's Eve. The event needs 6+ SWS teams to count for points at all &mdash; another reason the 8-team bubble matters.</div>
-    <p class="note">Also in the rulebook: a team may only run one endurance event per day, a driver can belong to max 3 teams, and results go definitive 10 days after upload &mdash; check yours promptly and raise any complaint through the track (SWS won't take it directly from you).</p>
-  </div>
-</section>
-
-<section id="questions">
-  <div class="sec-head"><h2>Call the track: 702-405-7223</h2><span class="tag">Unknowns the SWS rulebook doesn't cover</span></div>
-  <div class="sec-body">
-    <p>The SWS regulation deliberately leaves race procedure to the organizer. Everything below is track-defined and strategy-critical &mdash; get answers before Saturday, or at the 5:30 briefing at the latest:</p>
-    <ol class="qa">
-      <li><div><b>Are driver changes mandatory at every rotation, and is there a max drive time per driver?</b><span>Decides whether double-stinting is even legal &mdash; the whole planner hinges on this.</span></div></li>
-      <li><div><b>What exactly happens at a rotation?</b><span>Race suspended and everyone swaps at once, or rolling pit windows? Is the 20 min on-track time or including the swap? How is the running order preserved through the swap?</span></div></li>
-      <li><div><b>What is the ballast equalization target and increment?</b><span>And is it weighed per driver per stint, or fixed per seat?</span></div></li>
-      <li><div><b>How does the 30-min qualifying split across a 2-driver team, and must both drivers qualify?</b><span>The "10 min per driver" note assumes 3 drivers.</span></div></li>
-      <li><div><b>Can we choose our starting driver freely?</b><span>Or must the qualifier start?</span></div></li>
-      <li><div><b>What's the penalty system?</b><span>Contact, jump start, pit lane conduct &mdash; and is there a kart-swap procedure penalty (e.g., belts done by staff only)?</span></div></li>
-      <li><div><b>Is a pit board allowed at the fence, and where?</b><span>Some tracks restrict where spectators/teammates can signal from. Also: any live timing screen visible from the pit?</span></div></li>
-      <li><div><b>What happens if a kart fails mid-stint?</b><span>Swap kart with laps credited, or tough luck? Changes how hard you push a suspect kart.</span></div></li>
-    </ol>
-  </div>
-</section>
-
-<section id="checklist">
-  <div class="sec-head"><h2>Race week checklist</h2><span class="tag">Saves on this device</span></div>
-  <div class="sec-body">
-    <ul class="check" id="checkList">
-      <li data-k="din-w"><input type="checkbox" id="c1"><label for="c1"><b>William: SWS account (DIN) live</b><span>sodiwseries.com &mdash; verified email, correct name/DOB (results must match ID)</span></label></li>
-      <li data-k="din-m"><input type="checkbox" id="c2"><label for="c2"><b>Matthew: SWS account (DIN) live</b><span>Same &mdash; no DIN means ghost-driver scoring at 90% points</span></label></li>
-      <li data-k="team"><input type="checkbox" id="c3"><label for="c3"><b>SABLE Motorsports team created, both drivers joined</b><span>Team manager set; name locked for 2026</span></label></li>
-      <li data-k="prereg"><input type="checkbox" id="c4"><label for="c4"><b>Team pre-registered for US-VEG-142967 with both drivers named</b><span>On the event page &mdash; non-preregistered teams can be turned away</span></label><span class="due">BY SEP 4</span></li>
-      <li data-k="pay"><input type="checkbox" id="c5"><label for="c5"><b>$420 paid to Exotics Racing by card</b><span>702-405-7223 &mdash; confirmation in hand</span></label><span class="due">SEP 4 &middot; 4PM PT</span></li>
-      <li data-k="bubble"><input type="checkbox" id="c6"><label for="c6"><b>Sep 4: confirmed 8+ teams still entered</b><span>Below 8 the race can be cancelled &mdash; one phone call saves a wasted trip</span></label><span class="due">SEP 4</span></li>
-      <li data-k="track"><input type="checkbox" id="c7"><label for="c7"><b>Track questions answered (section above)</b><span>Stint rules, ballast target, quali split, pit procedure</span></label></li>
-      <li data-k="signals"><input type="checkbox" id="c8"><label for="c8"><b>Signal book agreed with Matthew</b><span>Board vocabulary + hand signals, 10-minute conversation</span></label></li>
-      <li data-k="plan"><input type="checkbox" id="c9"><label for="c9"><b>Stint plan locked in the planner</b><span>Who takes 5, who starts (glare), who anchors stint 9</span></label></li>
-      <li data-k="kit"><input type="checkbox" id="c10"><label for="c10"><b>Kit packed</b><span>Gloves (&times;2), balaclavas, tinted + clear visors or tear-offs, rib protector, electrolytes, cooler, salty snacks, sunscreen, IDs, phone with this page</span></label></li>
-      <li data-k="hydrate"><input type="checkbox" id="c11"><label for="c11"><b>Hydration started Friday</b><span>Both drivers &mdash; Vegas doesn't forgive same-day hydration</span></label></li>
-    </ul>
-  </div>
-</section>
+<nav class="tabs" id="tabs"></nav>
+<section class="pane" id="pane"></section>
 
 <footer>
-  <div>SABLE Motorsports &middot; W. Yi / M. Hergenroeder</div>
-  <div>SWS Endurance Cup &middot; Ref US-VEG-142967</div>
-  <div>Sources: event sheet + SWS Official Regulation 2026 (Jan 27, 2026)</div>
+  <div>SABLE Motorsports &middot; data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
+  <div id="footLink"></div>
 </footer>
 
 </div>
 
 <script>
-(function(){
-  var PAY = new Date("2026-09-04T16:00:00-07:00");
-  var RACE = new Date("2026-09-05T19:00:00-07:00");
-  function fmt(ms){
-    if (ms <= 0) return "PASSED";
-    var s = Math.floor(ms/1000);
-    var d = Math.floor(s/86400); s -= d*86400;
-    var h = Math.floor(s/3600);  s -= h*3600;
-    var m = Math.floor(s/60);
-    return d + "d " + String(h).padStart(2,"0") + "h " + String(m).padStart(2,"0") + "m";
-  }
-  function tick(){
-    var now = Date.now();
-    document.getElementById("cd-pay").textContent = fmt(PAY - now);
-    document.getElementById("cd-race").textContent = fmt(RACE - now);
-  }
-  tick(); setInterval(tick, 30000);
+"use strict";
+/* ---------- palette: UI (bright) + chart marks (validated for dark surface) ---------- */
+var PAL = [
+  {ui:"#ffb000", mark:"#c18400", name:"amber"},
+  {ui:"#4fc3f7", mark:"#1e8fc2", name:"cyan"},
+  {ui:"#41d98d", mark:"#1f9e63", name:"green"},
+  {ui:"#c792ea", mark:"#9166c9", name:"violet"}
+];
+var RIVAL_C = "#8a94a3";
 
-  /* ---- Stint planner ---- */
-  var STARTS = ["7:00","7:20","7:40","8:00","8:20","8:40","9:00","9:20","9:40"];
-  var KEY = "sable-stints";
-  var plan = "WMWMWMWMW";
-  try { var saved = localStorage.getItem(KEY); if (saved && /^[WM]{9}$/.test(saved)) plan = saved; } catch(e){}
+/* ---------- storage ---------- */
+var KEY = "sable-rm-v1";
+var store = null;
+function load(){
+  try { store = JSON.parse(localStorage.getItem(KEY) || "null"); } catch(e){ store = null; }
+  if (!store || !store.races) store = seed();
+  Object.keys(store.races).forEach(function(id){ normalize(store.races[id]); });
+  if (!store.races[store.currentId]) store.currentId = Object.keys(store.races)[0];
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){} }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function cur(){ return store.races[store.currentId]; }
 
-  var row = document.getElementById("stintRow");
-  function save(){ try { localStorage.setItem(KEY, plan); } catch(e){} }
-  function render(){
-    row.innerHTML = "";
-    for (var i=0;i<9;i++){
-      (function(i){
-        var who = plan[i];
-        var cell = document.createElement("div");
-        cell.className = "stint " + (who==="W" ? "will" : "matt");
-        cell.tabIndex = 0;
-        cell.setAttribute("role","button");
-        cell.setAttribute("aria-label","Stint "+(i+1)+", "+(who==="W"?"William":"Matthew")+". Activate to swap.");
-        cell.innerHTML = '<div class="n">S'+(i+1)+'</div><div class="who">'+(who==="W"?"WILL":"MATT")+'</div><div class="t">'+STARTS[i]+' PM</div>';
-        function toggle(){
-          plan = plan.slice(0,i) + (plan[i]==="W"?"M":"W") + plan.slice(i+1);
-          save(); render();
-        }
-        cell.addEventListener("click", toggle);
-        cell.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); }});
-        row.appendChild(cell);
-      })(i);
+function seed(){
+  var vegas = {
+    meta:{ name:"SABLE Motorsports", event:"Vegas 3H Endurance (SWS)", track:"Vegas Superkarts — Las Vegas, NV",
+      date:"2026-09-05", green:"19:00", stints:9, stintMin:20, link:"vegas-race-book.html",
+      notes:"Ref US-VEG-142967 · Exotics Racing 702-405-7223 · payment due Sep 4 4PM PT · no radios · ballast yes" },
+    drivers:[ {id:uid(), name:"William Yi", c:0}, {id:uid(), name:"Matthew Hergenroeder", c:1} ],
+    quali:{ times:{}, grid:"" },
+    stints:[], rivals:[], ourPos:[]
+  };
+  return { currentId:"vegas2026", races:{ vegas2026: vegas } };
+}
+function normalize(r){
+  r.meta.stints = Math.max(1, Math.min(40, +r.meta.stints || 9));
+  var n = r.meta.stints;
+  r.stints = r.stints || [];
+  while (r.stints.length < n) r.stints.push({d:"", kart:"", ps:"", pe:"", best:"", notes:"", laps:[]});
+  r.stints.length = n;
+  r.stints.forEach(function(s){ s.laps = s.laps || []; });
+  r.ourPos = (r.ourPos || []).slice(0, n); while (r.ourPos.length < n) r.ourPos.push("");
+  (r.rivals || []).forEach(function(rv){ rv.pos = (rv.pos || []).slice(0, n); while (rv.pos.length < n) rv.pos.push(""); });
+  r.rivals = r.rivals || [];
+  r.quali = r.quali || {times:{}, grid:""};
+  r.quali.times = r.quali.times || {};
+}
+
+/* ---------- time helpers ---------- */
+function parseLap(s){
+  s = String(s || "").trim();
+  var m = s.match(/^(?:(\d+):)?(\d{1,2}(?:[.,]\d{1,3})?)$/);
+  if (!m) return null;
+  var sec = parseFloat(m[2].replace(",", "."));
+  if (isNaN(sec) || sec >= 60 && m[1]) return null;
+  var ms = Math.round(((+m[1] || 0) * 60 + sec) * 1000);
+  return ms > 0 ? ms : null;
+}
+function fmtLap(ms){
+  if (ms == null || isNaN(ms)) return "—";
+  var mm = Math.floor(ms / 60000), s = (ms % 60000) / 1000;
+  var str = s.toFixed(3); if (mm && s < 10) str = "0" + str;
+  return mm ? mm + ":" + str : str;
+}
+function fmtClock(t){
+  t = Math.max(0, Math.round(t));
+  return String(Math.floor(t/60)).padStart(2,"0") + ":" + String(t%60).padStart(2,"0");
+}
+function stintWindow(meta, i){
+  if (!meta.green) return "";
+  var p = meta.green.split(":"), t = (+p[0])*60 + (+p[1] || 0) + i * (+meta.stintMin || 0);
+  var h = Math.floor(t/60) % 24, mn = t % 60;
+  var ampm = h >= 12 ? "PM" : "AM", hh = h % 12 || 12;
+  return hh + ":" + String(mn).padStart(2,"0") + " " + ampm;
+}
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function mean(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; }
+function sdev(a){ if (a.length < 2) return null; var m = mean(a); return Math.sqrt(a.reduce(function(x,y){return x+(y-m)*(y-m);},0)/(a.length-1)); }
+function driverById(r, id){ return r.drivers.find(function(d){ return d.id === id; }) || null; }
+function dcol(r, id){ var d = driverById(r, id); return d ? PAL[d.c % PAL.length] : {ui:"#6b7889", mark:"#6b7889"}; }
+function allLaps(r){
+  var out = [];
+  r.stints.forEach(function(s, si){ s.laps.forEach(function(ms, li){ out.push({ms:ms, si:si, li:li, d:s.d}); }); });
+  return out;
+}
+function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
+
+/* ---------- app state (not persisted) ---------- */
+var tab = "setup";
+var openStint = -1;
+var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
+var cd = { running:false, endAt:0 };                    // countdown
+var TABS = [["setup","Setup"],["quali","Quali"],["race","Race"],["rivals","Rivals"],["analysis","Analysis"]];
+
+/* ---------- header ---------- */
+function renderHeader(){
+  var sel = document.getElementById("raceSel");
+  sel.innerHTML = Object.keys(store.races).map(function(id){
+    var r = store.races[id];
+    return '<option value="' + id + '"' + (id === store.currentId ? " selected" : "") + '>' + esc(r.meta.event || r.meta.name || id) + '</option>';
+  }).join("");
+  var fl = document.getElementById("footLink"), link = cur().meta.link;
+  fl.innerHTML = link ? '<a href="' + esc(link) + '">race briefing &rarr;</a>' : "";
+}
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = TABS.map(function(t){
+    return '<button data-tab="' + t[0] + '" class="' + (tab === t[0] ? "on" : "") + '">' + t[1] + '</button>';
+  }).join("");
+}
+
+/* ---------- SETUP ---------- */
+function paneSetup(){
+  var r = cur(), m = r.meta;
+  var h = '<h2>Race setup</h2><div class="grid2">'
+    + fld("Event name","event",m.event,"text","e.g. Vegas 3H Endurance")
+    + fld("Team name","name",m.name,"text","")
+    + fld("Track","track",m.track,"text","")
+    + fld("Date","date",m.date,"date","")
+    + fld("Green flag","green",m.green,"time","")
+    + fld("Stints","stints",m.stints,"number","")
+    + fld("Stint length (min)","stintMin",m.stintMin,"number","")
+    + fld("Briefing link (optional)","link",m.link,"url","https://…")
+    + '</div>'
+    + '<div class="field" style="margin-top:12px"><label>Notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>';
+
+  h += '<h2 style="margin-top:22px">Drivers</h2><div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Color</th><th></th></tr></thead><tbody>';
+  r.drivers.forEach(function(d, i){
+    h += '<tr><td><input type="text" value="' + esc(d.name) + '" data-drv="' + d.id + '"></td>'
+      + '<td><select data-drvc="' + d.id + '">' + PAL.map(function(p, ci){
+          return '<option value="' + ci + '"' + (d.c === ci ? " selected" : "") + '>' + p.name + '</option>'; }).join("") + '</select></td>'
+      + '<td><button class="mini danger" data-deldrv="' + d.id + '">remove</button></td></tr>';
+  });
+  h += '</tbody></table></div><button class="mini" id="addDrv">+ Add driver</button>';
+  h += '<div class="callout">Data lives in this browser only. Before race day, <b>Export</b> a backup and <b>Import</b> it on the second phone — then export again after the race to merge notes.</div>';
+  h += '<div style="margin-top:18px;border-top:1px dashed var(--line);padding-top:14px"><button class="danger mini" id="delRace">Delete this race</button></div>';
+  return h;
+}
+function fld(label, key, val, type, ph){
+  return '<div class="field"><label>' + label + '</label><input type="' + type + '" value="' + esc(val) + '" placeholder="' + esc(ph) + '" data-meta="' + key + '"' + (type === "number" ? ' min="1" max="60"' : "") + '></div>';
+}
+
+/* ---------- QUALI ---------- */
+function paneQuali(){
+  var r = cur();
+  var h = '<h2>Qualifying</h2><p class="hint">Log every push lap per driver — enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>. Best lap is picked automatically.</p>';
+  h += '<div class="grid2" style="margin-top:12px;align-items:start">';
+  r.drivers.forEach(function(d){
+    var times = r.quali.times[d.id] || [];
+    var best = times.length ? Math.min.apply(null, times) : null;
+    var col = PAL[d.c % PAL.length].ui;
+    h += '<div class="tool"><h3 style="color:' + col + '">' + esc(d.name) + '</h3>'
+      + '<div class="btn-row"><input type="text" class="mono" style="max-width:130px" placeholder="lap time" data-qadd="' + d.id + '">'
+      + '<button class="mini" data-qbtn="' + d.id + '">Add</button>'
+      + (best ? '<span class="pill"><span class="dot" style="background:' + col + '"></span>best ' + fmtLap(best) + '</span>' : "")
+      + '</div><div class="laps-list">'
+      + times.map(function(ms, i){
+          return '<span class="lap-chip' + (ms === best ? " best" : "") + '">' + fmtLap(ms)
+            + '<button title="delete" data-qdel="' + d.id + ':' + i + '">&times;</button></span>';
+        }).join("")
+      + '</div></div>';
+  });
+  h += '</div><div class="field" style="max-width:220px;margin-top:14px"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.quali.grid) + '" data-grid placeholder="e.g. P4"></div>';
+  return h;
+}
+
+/* ---------- RACE ---------- */
+function paneRace(){
+  var r = cur(), m = r.meta;
+  var h = '<h2>Race</h2>';
+  /* timers */
+  h += '<div class="tools-row">';
+  var rem = cd.running ? (cd.endAt - Date.now())/1000 : m.stintMin*60;
+  h += '<div class="tool"><h3>Stint countdown &middot; ' + m.stintMin + ' min</h3>'
+    + '<div class="clockface" id="cdFace">' + fmtClock(rem) + '</div>'
+    + '<div class="board-prompt" id="cdPrompt"></div>'
+    + '<div class="btn-row"><button class="primary mini" id="cdStart">' + (cd.running ? "Restart" : "Start stint") + '</button>'
+    + '<button class="mini" id="cdStop">Reset</button></div>'
+    + '<p class="hint" style="margin:8px 0 0">Prompts follow the signal book: board at 5:00 and 3:00, IN NOW at 1:00.</p></div>';
+  h += '<div class="tool"><h3>Lap stopwatch &rarr; logs to stint</h3>'
+    + '<div class="clockface" id="swFace">' + (sw.running ? "" : "00:00") + '</div>'
+    + '<div class="board-prompt mono" id="swLast">' + (sw.running ? "" : "&nbsp;") + '</div>'
+    + '<div class="btn-row">'
+    + '<select id="swStint">' + r.stints.map(function(s, i){ return '<option value="' + i + '"' + (sw.stint === i ? " selected" : "") + '>S' + (i+1) + '</option>'; }).join("") + '</select>'
+    + (sw.running
+        ? '<button class="primary mini" id="swLap">LAP</button><button class="mini" id="swStop">Stop</button>'
+        : '<button class="primary mini" id="swGo">Start</button>')
+    + '</div></div>';
+  h += '</div>';
+
+  /* stint table */
+  h += '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Start</th><th>Driver</th><th>Kart</th><th>Pos in</th><th>Pos out</th><th>Best lap</th><th>Laps</th><th>Notes</th><th></th></tr></thead><tbody>';
+  r.stints.forEach(function(s, i){
+    var best = stintBest(s);
+    var col = s.d ? dcol(r, s.d).ui : null;
+    h += '<tr>'
+      + '<td class="mono">S' + (i+1) + '</td>'
+      + '<td class="mono">' + stintWindow(m, i) + '</td>'
+      + '<td><select data-sd="' + i + '"><option value="">—</option>' + r.drivers.map(function(d){
+          return '<option value="' + d.id + '"' + (s.d === d.id ? " selected" : "") + '>' + esc(d.name.split(" ")[0]) + '</option>'; }).join("") + '</select></td>'
+      + '<td><input class="num" type="text" value="' + esc(s.kart) + '" data-sk="' + i + '"></td>'
+      + '<td><input class="num" type="text" value="' + esc(s.ps) + '" data-sps="' + i + '"></td>'
+      + '<td><input class="num" type="text" value="' + esc(s.pe) + '" data-spe="' + i + '"></td>'
+      + '<td class="mono">' + (s.laps.length
+          ? '<span class="best">' + fmtLap(best) + '</span>'
+          : '<input class="num" type="text" value="' + esc(s.best) + '" data-sb="' + i + '" placeholder="—">') + '</td>'
+      + '<td class="mono">' + (s.laps.length || "") + '</td>'
+      + '<td><input type="text" value="' + esc(s.notes) + '" data-sn="' + i + '" placeholder=""></td>'
+      + '<td><button class="mini" data-open="' + i + '">' + (openStint === i ? "close" : "laps") + '</button></td>'
+      + '</tr>';
+    if (openStint === i){
+      h += '<tr class="laprow"><td colspan="10">'
+        + '<div class="btn-row"><b style="font-family:var(--disp);text-transform:uppercase' + (col ? ";color:" + col : "") + '">S' + (i+1) + ' laps</b>'
+        + '<input type="text" class="mono" style="max-width:120px" placeholder="add lap" data-ladd="' + i + '">'
+        + '<button class="mini" data-lbtn="' + i + '">Add</button>'
+        + (s.laps.length ? '<span class="pill">best ' + fmtLap(best) + '</span><span class="pill">avg ' + fmtLap(mean(s.laps)) + '</span>' : "")
+        + '</div><div class="laps-list">'
+        + s.laps.map(function(ms, li){
+            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">L' + (li+1) + ' &middot; ' + fmtLap(ms)
+              + '<button title="delete" data-ldel="' + i + ':' + li + '">&times;</button></span>'; }).join("")
+        + '</div></td></tr>';
     }
-    var w = (plan.match(/W/g)||[]).length, m = 9-w;
-    document.getElementById("totals").innerHTML =
-      '<span class="w">WILL '+w+' stints &middot; '+(w*20)+' min</span> &nbsp;/&nbsp; <span class="m">MATT '+m+' stints &middot; '+(m*20)+' min</span>';
-    var warn = document.getElementById("planWarn");
-    var runs = plan.match(/W+|M+/g), maxRun = 0;
-    for (var r=0;r<runs.length;r++) if (runs[r].length>maxRun) maxRun = runs[r].length;
-    if (w===0 || m===0) { warn.textContent = "One driver takes the whole race — that's a solo run, not a plan."; warn.classList.remove("plan-ok"); }
-    else if (maxRun>=3) { warn.textContent = "Warning: "+maxRun+" consecutive stints ("+(maxRun*20)+" min straight) in Vegas heat — confirm it's even allowed."; warn.classList.remove("plan-ok"); }
-    else if (maxRun===2) { warn.textContent = "Contains a double stint (40 min) — legal only if the track allows consecutive stints. Ask at briefing."; warn.classList.remove("plan-ok"); }
-    else { warn.textContent = "Pure alternation — every rest gap 20 min. Solid."; warn.classList.add("plan-ok"); }
-  }
-  document.querySelectorAll("button.preset").forEach(function(b){
-    b.addEventListener("click", function(){ plan = b.getAttribute("data-plan"); save(); render(); });
   });
-  render();
+  h += '</tbody></table></div>';
+  return h;
+}
 
-  /* ---- Checklist ---- */
-  var CKEY = "sable-checklist";
-  var state = {};
-  try { state = JSON.parse(localStorage.getItem(CKEY) || "{}") || {}; } catch(e){ state = {}; }
-  document.querySelectorAll("#checkList li").forEach(function(li){
-    var k = li.getAttribute("data-k"), box = li.querySelector("input");
-    if (state[k]) { box.checked = true; li.classList.add("done"); }
-    box.addEventListener("change", function(){
-      li.classList.toggle("done", box.checked);
-      state[k] = box.checked;
-      try { localStorage.setItem(CKEY, JSON.stringify(state)); } catch(e){}
-    });
+/* ---------- RIVALS ---------- */
+function paneRivals(){
+  var r = cur(), n = r.meta.stints;
+  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each team’s position at the end of every stint. Your team is the first row.</p>';
+  h += '<div class="btn-row" style="margin:10px 0"><input type="text" id="rivName" placeholder="rival team name" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th>';
+  for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
+  h += '<th></th></tr></thead><tbody>';
+  h += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(r.meta.name) + '</span></td>';
+  for (var i2 = 0; i2 < n; i2++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(r.ourPos[i2]) + '" data-op="' + i2 + '"></td>';
+  h += '<td></td></tr>';
+  r.rivals.forEach(function(rv, ri){
+    h += '<tr><td><input type="text" value="' + esc(rv.name) + '" data-rvn="' + ri + '" style="min-width:130px"></td>';
+    for (var j = 0; j < n; j++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(rv.pos[j]) + '" data-rp="' + ri + ':' + j + '"></td>';
+    h += '<td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
   });
-})();
+  h += '</tbody></table></div>';
+  h += posChart(r);
+  return h;
+}
+function posChart(r){
+  var n = r.meta.stints;
+  var teams = [{name:r.meta.name, pos:r.ourPos, us:true}].concat(r.rivals.map(function(rv){ return {name:rv.name, pos:rv.pos, us:false}; }));
+  var pts = teams.map(function(t){
+    return t.pos.map(function(p, i){ var v = parseInt(p, 10); return isNaN(v) ? null : {x:i, y:v}; }).filter(Boolean);
+  });
+  if (!pts.some(function(a){ return a.length; })) return '<p class="hint">Position trace appears here once positions are entered.</p>';
+  var maxP = 1; pts.forEach(function(a){ a.forEach(function(p){ if (p.y > maxP) maxP = p.y; }); });
+  var W = 720, H = 60 + maxP * 24, L = 40, R = 110, T = 18, B = 30;
+  var xs = function(x){ return L + (n === 1 ? 0 : x * (W - L - R) / (n - 1)); };
+  var ys = function(y){ return T + (y - 1) * (H - T - B) / Math.max(1, maxP - 1); };
+  var s = '<h2 style="margin-top:20px">Position trace</h2><div class="legend"><span class="pill"><span class="dot" style="background:' + PAL[0].mark + '"></span>' + esc(r.meta.name) + '</span><span class="pill"><span class="dot" style="background:' + RIVAL_C + '"></span>rivals</span></div>';
+  s += '<div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Race position by stint">';
+  for (var p = 1; p <= maxP; p++)
+    s += '<line x1="' + L + '" y1="' + ys(p) + '" x2="' + (W - R) + '" y2="' + ys(p) + '" stroke="#2a3442" stroke-width="1"/>'
+      + '<text x="' + (L - 8) + '" y="' + (ys(p) + 3.5) + '" fill="#6b7889" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="end">P' + p + '</text>';
+  for (var xi = 0; xi < n; xi++)
+    s += '<text x="' + xs(xi) + '" y="' + (H - 8) + '" fill="#6b7889" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">S' + (xi+1) + '</text>';
+  teams.forEach(function(t, ti){
+    var a = pts[ti]; if (!a.length) return;
+    var col = t.us ? PAL[0].mark : RIVAL_C, wdt = t.us ? 3 : 2;
+    if (a.length > 1)
+      s += '<path d="M' + a.map(function(p){ return xs(p.x) + " " + ys(p.y); }).join(" L") + '" fill="none" stroke="' + col + '" stroke-width="' + wdt + '" stroke-linejoin="round" stroke-linecap="round"' + (t.us ? "" : ' opacity=".8"') + '/>';
+    a.forEach(function(p){
+      s += '<circle cx="' + xs(p.x) + '" cy="' + ys(p.y) + '" r="4" fill="' + col + '" stroke="#161c25" stroke-width="2"><title>' + esc(t.name) + ' — S' + (p.x+1) + ': P' + p.y + '</title></circle>';
+    });
+    var last = a[a.length - 1];
+    s += '<text x="' + (xs(last.x) + 10) + '" y="' + (ys(last.y) + 4) + '" fill="' + (t.us ? "#e9eef5" : "#9fadbf") + '" font-family="Archivo,sans-serif" font-size="12">' + esc(t.name.length > 14 ? t.name.slice(0,13) + "…" : t.name) + '</text>';
+  });
+  s += '</svg></div>';
+  return s;
+}
+
+/* ---------- ANALYSIS ---------- */
+function paneAnalysis(){
+  var r = cur(), laps = allLaps(r);
+  var h = '<h2>Analysis</h2>';
+  if (!laps.length){
+    var manual = r.stints.map(stintBest).filter(Boolean);
+    h += '<p class="hint">Log laps in the Race tab (stopwatch or typed) and this page fills itself in.' + (manual.length ? ' Best recorded stint time so far: <span class="mono best">' + fmtLap(Math.min.apply(null, manual)) + '</span>.' : "") + '</p>';
+    return h;
+  }
+  var times = laps.map(function(l){ return l.ms; });
+  var best = Math.min.apply(null, times);
+  var bl = laps.find(function(l){ return l.ms === best; });
+  var bd = driverById(r, bl.d);
+  h += '<div class="tiles">'
+    + tile("Best lap", fmtLap(best), (bd ? esc(bd.name.split(" ")[0]) : "?") + " · S" + (bl.si+1))
+    + tile("Average", fmtLap(mean(times)), laps.length + " laps logged")
+    + tile("Consistency σ", (sdev(times) != null ? (sdev(times)/1000).toFixed(3) + "s" : "—"), "lower = steadier")
+    + tile("Stints filled", r.stints.filter(function(s){ return s.laps.length; }).length + "/" + r.meta.stints, "with lap data")
+    + '</div>';
+
+  /* per-driver table */
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Avg</th><th>σ (s)</th></tr></thead><tbody>';
+  r.drivers.forEach(function(d){
+    var dl = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
+    if (!dl.length) return;
+    var col = PAL[d.c % PAL.length].ui;
+    h += '<tr><td><span class="pill"><span class="dot" style="background:' + col + '"></span>' + esc(d.name) + '</span></td>'
+      + '<td class="mono">' + dl.length + '</td>'
+      + '<td class="mono best">' + fmtLap(Math.min.apply(null, dl)) + '</td>'
+      + '<td class="mono">' + fmtLap(mean(dl)) + '</td>'
+      + '<td class="mono">' + (sdev(dl) != null ? (sdev(dl)/1000).toFixed(3) : "—") + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += lapChart(r, laps, best);
+  return h;
+}
+function tile(k, v, s){ return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>'; }
+function lapChart(r, laps, best){
+  var W = 720, H = 250, L = 56, R = 16, T = 14, B = 34;
+  var times = laps.map(function(l){ return l.ms; });
+  var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
+  var pad = Math.max(300, (hi - lo) * 0.08); lo -= pad; hi += pad;
+  var xs = function(i){ return L + (laps.length === 1 ? 0 : i * (W - L - R) / (laps.length - 1)); };
+  // y axis = lap time; smaller (faster) sits at the top
+  var ys = function(ms){ return T + (ms - lo) * (H - T - B) / (hi - lo); };
+  var s = '<h2 style="margin-top:20px">Lap times</h2>';
+  s += '<div class="legend">' + r.drivers.map(function(d){
+      return '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].mark + '"></span>' + esc(d.name.split(" ")[0]) + '</span>'; }).join("")
+    + '</div><div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Lap times across the race">';
+  /* y grid: 4 ticks */
+  for (var g = 0; g <= 3; g++){
+    var v = lo + (hi - lo) * g / 3, y = ys(v);
+    s += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - R) + '" y2="' + y + '" stroke="#2a3442" stroke-width="1"/>'
+      + '<text x="' + (L - 8) + '" y="' + (y + 3.5) + '" fill="#6b7889" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="end">' + fmtLap(Math.round(v/100)*100) + '</text>';
+  }
+  /* stint boundaries + segments */
+  var idx = 0;
+  r.stints.forEach(function(st, si){
+    if (!st.laps.length) return;
+    var col = st.d ? dcol(r, st.d).mark : "#6b7889";
+    var seg = st.laps.map(function(ms, li){ return {x: xs(idx + li), y: ys(ms), ms: ms, li: li}; });
+    if (idx > 0) s += '<line x1="' + (xs(idx) - ((xs(idx) - xs(idx-1)) / 2)) + '" y1="' + T + '" x2="' + (xs(idx) - ((xs(idx) - xs(idx-1)) / 2)) + '" y2="' + (H - B) + '" stroke="#2a3442" stroke-dasharray="3 4"/>';
+    if (seg.length > 1) s += '<path d="M' + seg.map(function(p){ return p.x + " " + p.y; }).join(" L") + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round"/>';
+    seg.forEach(function(p){
+      var isBest = p.ms === best;
+      s += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + (isBest ? 5 : 3.5) + '" fill="' + col + '" stroke="' + (isBest ? "#e9eef5" : "#161c25") + '" stroke-width="2"><title>S' + (si+1) + ' L' + (p.li+1) + ' — ' + fmtLap(p.ms) + '</title></circle>';
+    });
+    s += '<text x="' + xs(idx + Math.max(0,(st.laps.length-1)/2)) + '" y="' + (H - 10) + '" fill="#6b7889" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">S' + (si+1) + '</text>';
+    idx += st.laps.length;
+  });
+  s += '</svg></div><p class="hint">Smaller is better — best lap ringed. Dashed lines mark stint changes (and kart changes with them): a step up after a swap usually means the kart, not the driver.</p>';
+  return s;
+}
+
+/* ---------- render + events ---------- */
+function render(){
+  renderHeader(); renderTabs();
+  var pane = document.getElementById("pane");
+  pane.innerHTML = tab === "setup" ? paneSetup()
+    : tab === "quali" ? paneQuali()
+    : tab === "race" ? paneRace()
+    : tab === "rivals" ? paneRivals()
+    : paneAnalysis();
+  save();
+}
+
+document.getElementById("tabs").addEventListener("click", function(e){
+  var b = e.target.closest("[data-tab]"); if (!b) return;
+  tab = b.getAttribute("data-tab"); render();
+});
+document.getElementById("raceSel").addEventListener("change", function(e){
+  store.currentId = e.target.value; openStint = -1; stopTimers(); render();
+});
+document.getElementById("newRace").addEventListener("click", function(){
+  var id = uid(), src = cur();
+  store.races[id] = {
+    meta:{ name:src.meta.name, event:"New race", track:"", date:"", green:"", stints:9, stintMin:20, link:"", notes:"" },
+    drivers: src.drivers.map(function(d){ return {id:d.id, name:d.name, c:d.c}; }),
+    quali:{times:{}, grid:""}, stints:[], rivals:[], ourPos:[]
+  };
+  normalize(store.races[id]);
+  store.currentId = id; tab = "setup"; openStint = -1; stopTimers(); render();
+});
+document.getElementById("exportBtn").addEventListener("click", function(){
+  var blob = new Blob([JSON.stringify(store, null, 1)], {type:"application/json"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "sable-racing-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+});
+document.getElementById("importBtn").addEventListener("click", function(){ document.getElementById("importFile").click(); });
+document.getElementById("importFile").addEventListener("change", function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    try {
+      var inc = JSON.parse(rd.result);
+      if (!inc || !inc.races) throw new Error("bad file");
+      if (!confirm("Import " + Object.keys(inc.races).length + " race(s)? Same-ID races will be overwritten by the file.")) return;
+      Object.keys(inc.races).forEach(function(id){ store.races[id] = inc.races[id]; normalize(store.races[id]); });
+      render();
+    } catch(err){ alert("Could not read that file as a Racing Manager export."); }
+  };
+  rd.readAsText(f);
+  e.target.value = "";
+});
+
+/* pane delegation */
+var paneEl = document.getElementById("pane");
+paneEl.addEventListener("change", function(e){
+  var t = e.target, r = cur(), a;
+  if ((a = t.getAttribute("data-meta")) != null){
+    r.meta[a] = t.type === "number" ? +t.value : t.value;
+    if (a === "stints" || a === "stintMin"){ normalize(r); stopTimers(); }
+    render();
+  }
+  else if ((a = t.getAttribute("data-drv"))) { var d = driverById(r, a); if (d) d.name = t.value; render(); }
+  else if ((a = t.getAttribute("data-drvc"))) { var d2 = driverById(r, a); if (d2) d2.c = +t.value; render(); }
+  else if ((a = t.getAttribute("data-grid")) != null || t.hasAttribute("data-grid")) { r.quali.grid = t.value; save(); }
+  else if ((a = t.getAttribute("data-sd"))) { r.stints[+a].d = t.value; render(); }
+  else if ((a = t.getAttribute("data-sk"))) { r.stints[+a].kart = t.value; save(); }
+  else if ((a = t.getAttribute("data-sps"))) { r.stints[+a].ps = t.value; save(); }
+  else if ((a = t.getAttribute("data-spe"))) { r.stints[+a].pe = t.value; save(); }
+  else if ((a = t.getAttribute("data-sb"))) { r.stints[+a].best = t.value; save(); }
+  else if ((a = t.getAttribute("data-sn"))) { r.stints[+a].notes = t.value; save(); }
+  else if ((a = t.getAttribute("data-op"))) { r.ourPos[+a] = t.value; render(); }
+  else if ((a = t.getAttribute("data-rvn"))) { r.rivals[+a].name = t.value; render(); }
+  else if ((a = t.getAttribute("data-rp"))) { var pr = a.split(":"); r.rivals[+pr[0]].pos[+pr[1]] = t.value; render(); }
+  else if (t.id === "swStint") { sw.stint = +t.value; }
+});
+paneEl.addEventListener("click", function(e){
+  var t = e.target.closest("button"); if (!t) return;
+  var r = cur(), a;
+  if (t.id === "addDrv"){ r.drivers.push({id:uid(), name:"Driver " + (r.drivers.length+1), c:r.drivers.length % PAL.length}); render(); }
+  else if ((a = t.getAttribute("data-deldrv"))){
+    if (!confirm("Remove this driver? Their quali times are removed too (stint assignments are kept).")) return;
+    r.drivers = r.drivers.filter(function(d){ return d.id !== a; });
+    delete r.quali.times[a]; render();
+  }
+  else if (t.id === "delRace"){
+    if (Object.keys(store.races).length === 1) { alert("This is the only race — create another one first."); return; }
+    if (!confirm('Delete "' + (r.meta.event || r.meta.name) + '" and all its data? This cannot be undone.')) return;
+    delete store.races[store.currentId];
+    store.currentId = Object.keys(store.races)[0]; stopTimers(); render();
+  }
+  else if ((a = t.getAttribute("data-qbtn"))) addQuali(a);
+  else if ((a = t.getAttribute("data-qdel"))){ var q = a.split(":"); r.quali.times[q[0]].splice(+q[1], 1); render(); }
+  else if ((a = t.getAttribute("data-open"))){ openStint = openStint === +a ? -1 : +a; render(); }
+  else if ((a = t.getAttribute("data-lbtn"))) addLap(+a);
+  else if ((a = t.getAttribute("data-ldel"))){ var p = a.split(":"); r.stints[+p[0]].laps.splice(+p[1], 1); render(); }
+  else if (t.id === "rivAdd"){
+    var nm = document.getElementById("rivName").value.trim(); if (!nm) return;
+    var rv = {name:nm, pos:[]}; r.rivals.push(rv); normalize(r); render();
+  }
+  else if ((a = t.getAttribute("data-rvdel"))){ r.rivals.splice(+a, 1); render(); }
+  else if (t.id === "cdStart") startCountdown();
+  else if (t.id === "cdStop"){ cd.running = false; render(); }
+  else if (t.id === "swGo"){ sw.running = true; sw.t0 = Date.now(); sw.lastLap = sw.t0; sw.stint = +document.getElementById("swStint").value; render(); }
+  else if (t.id === "swLap"){
+    var now = Date.now(), ms = now - sw.lastLap; sw.lastLap = now;
+    cur().stints[sw.stint].laps.push(ms); save();
+    document.getElementById("swLast").textContent = "lap " + fmtLap(ms);
+    var tbl = tab === "race"; if (tbl && openStint === sw.stint) render();
+  }
+  else if (t.id === "swStop"){ sw.running = false; render(); }
+});
+paneEl.addEventListener("keydown", function(e){
+  if (e.key !== "Enter") return;
+  var t = e.target, a;
+  if ((a = t.getAttribute("data-qadd"))) { e.preventDefault(); addQuali(a); }
+  else if ((a = t.getAttribute("data-ladd"))) { e.preventDefault(); addLap(+a); }
+});
+function addQuali(driverId){
+  var inp = paneEl.querySelector('[data-qadd="' + driverId + '"]');
+  var ms = parseLap(inp.value);
+  if (ms == null){ inp.select(); return; }
+  var r = cur();
+  (r.quali.times[driverId] = r.quali.times[driverId] || []).push(ms);
+  render();
+  var again = paneEl.querySelector('[data-qadd="' + driverId + '"]'); if (again) again.focus();
+}
+function addLap(si){
+  var inp = paneEl.querySelector('[data-ladd="' + si + '"]');
+  var ms = parseLap(inp.value);
+  if (ms == null){ inp.select(); return; }
+  cur().stints[si].laps.push(ms); render();
+  var again = paneEl.querySelector('[data-ladd="' + si + '"]'); if (again) again.focus();
+}
+
+/* ---------- timers ---------- */
+var tick = null;
+function stopTimers(){ cd.running = false; sw.running = false; }
+function startCountdown(){
+  cd.running = true;
+  cd.endAt = Date.now() + cur().meta.stintMin * 60000;
+  render();
+}
+setInterval(function(){
+  if (tab !== "race") return;
+  var face = document.getElementById("cdFace"), pr = document.getElementById("cdPrompt");
+  if (face && cd.running){
+    var remS = (cd.endAt - Date.now()) / 1000;
+    face.textContent = fmtClock(remS);
+    face.className = "clockface" + (remS <= 60 ? " crit" : remS <= 180 ? " warn" : "");
+    var msg = "", crit = false;
+    if (remS <= 0){ msg = "STINT OVER — ROTATE"; crit = true; if (remS < -0.5) cd.running = false; }
+    else if (remS <= 60){ msg = "BOARD: IN NOW"; crit = true; }
+    else if (remS <= 180){ msg = "BOARD: 3 MIN — next driver walks"; }
+    else if (remS <= 300){ msg = "BOARD: 5 MIN"; }
+    pr.textContent = msg;
+    pr.className = "board-prompt" + (crit ? " crit" : "");
+  }
+  var sf = document.getElementById("swFace"), sl = document.getElementById("swLast");
+  if (sf && sw.running){
+    var el = (Date.now() - sw.t0) / 1000;
+    sf.textContent = fmtClock(el);
+    if (sl && !sl.textContent.trim()) sl.innerHTML = "current lap " + fmtLap(Date.now() - sw.lastLap);
+    else if (sl && sl.textContent.indexOf("current") === 0) sl.textContent = "current lap " + fmtLap(Date.now() - sw.lastLap);
+  }
+}, 250);
+
+/* ---------- boot ---------- */
+load(); render();
 </script>
 </body>
 </html>

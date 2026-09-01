@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SABLE Vegas Race Book</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#0e1218; --panel:#161c25; --panel-2:#1c2430; --line:#2a3442;
+    --ink:#e9eef5; --ink-dim:#9fadbf; --ink-faint:#6b7889;
+    --amber:#ffb000; --amber-deep:#cc8a00;
+    --red:#ff5a5a; --green:#41d98d; --cyan:#4fc3f7;
+    --will:#ffb000; --matt:#4fc3f7;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:"Saira Condensed","Arial Narrow",Impact,sans-serif;
+    --body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  }
+  html{color-scheme:dark}
+  body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;margin:0;padding:0 16px 80px}
+  .wrap{max-width:980px;margin:0 auto}
+  a{color:var(--cyan)}
+  h1,h2,h3{font-family:var(--disp);text-transform:uppercase;letter-spacing:.02em;text-wrap:balance;margin:0}
+  p{margin:.5em 0}
+
+  /* Masthead */
+  header{padding:34px 0 20px;border-bottom:3px solid var(--amber)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
+  h1{font-size:clamp(42px,7vw,68px);font-weight:800;line-height:.95}
+  h1 .thin{color:var(--ink-dim);font-weight:600}
+  .subhead{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+  .subhead b{color:var(--ink);font-weight:600}
+
+  /* Countdown strip */
+  .clocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:20px 0 8px}
+  .clock{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+  .clock.crit{border-color:var(--red);background:linear-gradient(0deg,rgba(255,90,90,.08),rgba(255,90,90,.08)),#161c25}
+  .clock .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
+  .clock.crit .lbl{color:var(--red)}
+  .clock .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;margin-top:4px}
+  .clock .sub{font-size:13px;color:var(--ink-faint);margin-top:2px}
+
+  /* Panels */
+  section{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:26px 0;overflow:hidden}
+  .sec-head{display:flex;align-items:baseline;gap:14px;padding:16px 22px 12px;border-bottom:1px solid var(--line)}
+  .sec-head h2{font-size:26px;font-weight:700}
+  .sec-head .tag{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-left:auto}
+  .sec-body{padding:18px 22px 22px}
+  .sec-body>p:first-child{margin-top:0}
+  section.alert{border-color:var(--red)}
+  section.alert .sec-head{background:rgba(255,90,90,.09);border-bottom-color:var(--red)}
+  section.alert h2{color:var(--red)}
+
+  .lede{font-size:18px;line-height:1.6;max-width:64ch}
+  .note{color:var(--ink-dim);font-size:14px;max-width:70ch}
+  .callout{border-left:3px solid var(--amber);background:var(--panel-2);padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;max-width:74ch}
+  .callout.red{border-left-color:var(--red)}
+  .callout.green{border-left-color:var(--green)}
+  .callout b{color:var(--ink)}
+
+  /* Fact grid */
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:6px 0 4px}
+  .fact{background:var(--panel-2);padding:12px 14px}
+  .fact .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .fact .v{font-family:var(--disp);font-size:22px;font-weight:700;margin-top:2px}
+  .fact .v small{font-size:14px;color:var(--ink-dim);font-family:var(--body);font-weight:500}
+
+  /* Tables */
+  .tbl-wrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);text-align:left;padding:8px 12px;border-bottom:2px solid var(--line);white-space:nowrap}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.mono, .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .pill.amber{background:rgba(255,176,0,.15);color:var(--amber)}
+  .pill.red{background:rgba(255,90,90,.15);color:var(--red)}
+  .pill.green{background:rgba(65,217,141,.15);color:var(--green)}
+  .pill.cyan{background:rgba(79,195,247,.15);color:var(--cyan)}
+  .pill.dim{background:rgba(159,173,191,.12);color:var(--ink-dim)}
+
+  /* Day timeline */
+  .dayline{list-style:none;margin:8px 0 0;padding:0}
+  .dayline li{display:grid;grid-template-columns:92px 1fr;gap:14px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .dayline li:last-child{border-bottom:none}
+  .dayline time{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;color:var(--amber)}
+  .dayline .what b{display:block}
+  .dayline .what span{color:var(--ink-dim);font-size:14px}
+  .dayline li.race time{color:var(--green)}
+
+  /* Stint planner */
+  .stint-row{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin:14px 0 10px}
+  .stint{border:1px solid var(--line);border-radius:6px;padding:10px 6px 8px;text-align:center;cursor:pointer;background:var(--panel-2);transition:transform .08s ease;user-select:none}
+  .stint:hover{transform:translateY(-2px)}
+  .stint:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .stint .n{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint)}
+  .stint .t{font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:2px}
+  .stint .who{font-family:var(--disp);font-size:24px;font-weight:800;line-height:1.1;margin:4px 0 2px}
+  .stint.will{border-color:var(--will);background:rgba(255,176,0,.10)}
+  .stint.will .who{color:var(--will)}
+  .stint.matt{border-color:var(--matt);background:rgba(79,195,247,.10)}
+  .stint.matt .who{color:var(--matt)}
+  .planner-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+  .planner-bar .totals{font-family:var(--mono);font-size:13px;margin-right:auto}
+  .totals .w{color:var(--will);font-weight:600}
+  .totals .m{color:var(--matt);font-weight:600}
+  button.preset{font-family:var(--mono);font-size:12px;letter-spacing:.06em;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:7px 12px;cursor:pointer}
+  button.preset:hover{border-color:var(--amber);color:var(--amber)}
+  button.preset:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .plan-warn{font-size:13px;color:var(--red);font-family:var(--mono);min-height:1.4em;margin-top:8px}
+  .plan-ok{color:var(--green)}
+
+  /* Board signals */
+  .board{display:inline-block;font-family:var(--mono);font-weight:600;background:#05070a;border:2px solid #333d4b;color:var(--amber);border-radius:4px;padding:3px 10px;letter-spacing:.1em;white-space:nowrap}
+
+  /* Checklist */
+  .check{list-style:none;margin:0;padding:0}
+  .check li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .check li:last-child{border-bottom:none}
+  .check input{width:18px;height:18px;margin-top:3px;accent-color:var(--green);flex:none;cursor:pointer}
+  .check label{cursor:pointer}
+  .check label b{color:var(--ink)}
+  .check label span{color:var(--ink-dim);font-size:14px;display:block}
+  .check li.done label{opacity:.45;text-decoration:line-through}
+  .check .due{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;white-space:nowrap;margin-left:auto;padding-top:4px}
+
+  .qa{margin:0;padding:0;list-style:none;counter-reset:q}
+  .qa li{counter-increment:q;display:grid;grid-template-columns:40px 1fr;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .qa li:last-child{border-bottom:none}
+  .qa li::before{content:"Q" counter(q);font-family:var(--mono);font-weight:600;color:var(--amber);font-size:13px;padding-top:2px}
+  .qa b{display:block}
+  .qa span{color:var(--ink-dim);font-size:14px}
+
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 24px}
+  @media (max-width:720px){
+    .stint-row{grid-template-columns:repeat(3,1fr)}
+    .sec-head{flex-wrap:wrap}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .stint{transition:none}
+    .stint:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Pit wall race book &middot; SWS Endurance Cup &middot; US-VEG-142967</div>
+  <h1>SABLE Motorsports <span class="thin">/ Vegas 3&nbsp;Hours</span></h1>
+  <div class="subhead">
+    <div><b>Vegas Superkarts</b> (Exotics Racing) &middot; Las Vegas, NV &middot; Outdoor</div>
+    <div>Sat <b>Sep 5, 2026</b> &middot; Green flag <b>7:00 PM PT</b></div>
+    <div><b>William Yi</b> + <b>Matthew Hergenroeder</b></div>
+    <div>Sodi RT10 &middot; GX 270cc &middot; $420 / team</div>
+  </div>
+  <div class="clocks">
+    <div class="clock crit">
+      <div class="lbl">Payment + full registration due</div>
+      <div class="val" id="cd-pay">&mdash;</div>
+      <div class="sub">Thu Sep 4, 4:00 PM PT &middot; unpaid teams are removed</div>
+    </div>
+    <div class="clock">
+      <div class="lbl">Green flag</div>
+      <div class="val" id="cd-race">&mdash;</div>
+      <div class="sub">Sat Sep 5, 7:00 PM PT &middot; 9 &times; 20 min stints</div>
+    </div>
+  </div>
+</header>
+
+<section class="alert" id="critical">
+  <div class="sec-head"><h2>Read this first &mdash; the race is won on Sep 4</h2><span class="tag">Deadlines</span></div>
+  <div class="sec-body">
+    <p class="lede">The single most dangerous detail in the event sheet: the entry list closes a day <em>before</em> the date on the flyer. "Deadline for preregistration 2026-09-05" is not the deadline that matters.</p>
+    <div class="callout red"><b>Full payment ($420, credit card, call 702-405-7223) is due Thursday Sep 4 by 4:00 PM PT.</b> Unpaid teams are removed from the registration. Seats are limited to 16 teams.</div>
+    <div class="callout red"><b>Every driver must be individually registered before the race.</b> Under SWS rules that means: William and Matthew each need their own SWS account (DIN) with a verified email at sodiwseries.com, both must be members of the SABLE Motorsports team, and the team manager must pre-register the team <em>with both drivers named</em> on the event page.</div>
+    <div class="callout"><b>Cancellation bubble:</b> if fewer than 8 teams have signed up by Sep 4, the race can be cancelled &mdash; and the sheet currently shows exactly 8 of 16. Pay early; it helps keep the event alive, and confirm on Sep 4 that the entry count held.</div>
+    <div class="callout"><b>No ghost drivers.</b> If either of you races without an SWS account, the team is scored as having a guest driver and only collects 90% of the points. Two verified DINs = 100%.</div>
+  </div>
+</section>
+
+<section id="format">
+  <div class="sec-head"><h2>The format, decoded</h2><span class="tag">What kind of race this is</span></div>
+  <div class="sec-body">
+    <div class="facts">
+      <div class="fact"><div class="k">Race length</div><div class="v">3h00 <small>= 9 stints</small></div></div>
+      <div class="fact"><div class="k">Stint length</div><div class="v">20 min <small>fixed</small></div></div>
+      <div class="fact"><div class="k">Drivers</div><div class="v">2 <small>5 + 4 split</small></div></div>
+      <div class="fact"><div class="k">Kart</div><div class="v">RT10 <small>GX 270cc</small></div></div>
+      <div class="fact"><div class="k">Kart draw</div><div class="v">Rotation <small>every stint</small></div></div>
+      <div class="fact"><div class="k">Ballast</div><div class="v">Yes <small>target TBC</small></div></div>
+      <div class="fact"><div class="k">Radios</div><div class="v">Banned <small>pit board only</small></div></div>
+      <div class="fact"><div class="k">SWS bonus</div><div class="v">+10 pts <small>3h duration</small></div></div>
+    </div>
+    <p>Three facts define every strategic choice in this race:</p>
+    <p><b>1. Karts rotate every stint.</b> Nobody keeps a good kart and nobody is stuck with a bad one. Machinery averages out over 9 stints, so the race is decided by <em>driver consistency, clean pit rotations, and traffic management</em> &mdash; not by equipment or a hero lap.</p>
+    <p><b>2. Stints are fixed 20-minute blocks.</b> There is no fuel window to play with and no undercut. "Strategy" collapses into three levers you fully control: who drives which stints, how flawlessly you execute 8 rotations, and how you feed information to the driver with no radio.</p>
+    <p><b>3. It's an evening race.</b> Sunset in Las Vegas on Sep 5 is around 7:04 PM &mdash; the green flag drops <em>into</em> the sunset. Stint 1 is driven in low-sun glare, stints 2&ndash;3 in fading twilight, stints 4&ndash;9 fully under floodlights. Whoever starts needs a plan for glare (tear-offs / tinted visor for stint 1 only, clear after); expect grip to improve as the track cools.</p>
+  </div>
+</section>
+
+<section id="machine">
+  <div class="sec-head"><h2>Machine &amp; circuit</h2><span class="tag">Sodi RT10 &middot; Vegas Superkarts</span></div>
+  <div class="sec-body">
+    <div class="facts">
+      <div class="fact"><div class="k">Engine</div><div class="v">GX270 <small>Honda 4-stroke</small></div></div>
+      <div class="fact"><div class="k">Top speed</div><div class="v">~50 mph</div></div>
+      <div class="fact"><div class="k">Steering</div><div class="v">Easy Drive <small>light, responsive</small></div></div>
+      <div class="fact"><div class="k">Seat</div><div class="v">Adjustable <small>check every swap</small></div></div>
+    </div>
+    <p><b>Drive the RT10 like the 4-stroke it is.</b> The Honda GX270 makes torque, not revs &mdash; lap time lives in corner-exit speed, not entry heroics. A slide that feels fast bleeds the exact momentum this engine can't give back on the next straight. Smooth arcs, early throttle, minimum steering input: the EASY DRIVE rack is light enough that over-driving it is the default mistake.</p>
+    <p><b>Draft is a real weapon at ~50 mph.</b> Two identical karts on a long straight: the one in the tow gains. Passing happens at the end of the two longest runs; in the tight sections you hold the inside and wait rather than lunge.</p>
+    <div class="callout"><b>The adjustable seat is a rotation trap.</b> You inherit a different kart every stint, set for whoever drove it last. If you and Matthew run different seat positions, learn the adjustment mechanism during practice, and build "check seat + belts" into every changeover &mdash; a wrong seat position costs tenths every lap for 20 minutes. Ask staff whether they assist with adjustments during rotation.</div>
+
+    <svg viewBox="0 0 340 280" role="img" aria-label="Schematic of the Vegas Superkarts track layout" style="display:block;max-width:440px;margin:18px auto 4px">
+      <path d="M 34 250 L 98 32 Q 105 14 119 25 L 152 118 Q 156 131 169 129 L 262 118 Q 276 116 279 102 L 283 76 Q 285 62 271 60 L 240 58 Q 226 57 228 71 L 232 92 Q 234 106 220 112 L 156 140 Q 144 146 152 156 L 216 180 Q 228 185 222 196 L 190 240 Q 184 250 170 250 Z"
+        fill="none" stroke="#e9eef5" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="100" y1="243" x2="100" y2="257" stroke="#ffb000" stroke-width="3" stroke-dasharray="3 3"/>
+      <text x="100" y="272" fill="#ffb000" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">S/F</text>
+      <circle cx="66" cy="140" r="4" fill="#ffb000"/>
+      <text x="52" y="128" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="end">longest run &mdash;</text>
+      <text x="52" y="141" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="end">draft &amp; pass</text>
+      <circle cx="112" cy="22" r="4" fill="#ffb000"/>
+      <text x="128" y="18" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10">hairpin &mdash; late apex</text>
+      <circle cx="256" cy="62" r="4" fill="#ffb000"/>
+      <text x="256" y="46" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10" text-anchor="middle">loop</text>
+      <circle cx="186" cy="152" r="4" fill="#ffb000"/>
+      <text x="196" y="166" fill="#9fadbf" font-family="IBM Plex Mono,monospace" font-size="10">esses &mdash; hold inside</text>
+    </svg>
+    <p class="note" style="text-align:center;margin:0 auto">Schematic traced from the track map &mdash; corner shapes approximate. Verify direction of travel and braking points on the 6:45 PM grid walk.</p>
+    <p><b>Reading the layout:</b> one dominant straight, a tight hairpin at its end, and a middle section of switchbacks. That's a classic "one real passing zone" circuit: set the pass up through the esses by staying close, take it under braking at the hairpin or with the draft into the S/F corner. Defending is cheap here &mdash; a kart on the inside line through the switchbacks is nearly impossible to pass, so track position taken in clean pit rotations is worth more than raw pace in traffic.</p>
+  </div>
+</section>
+
+<section id="schedule">
+  <div class="sec-head"><h2>Race day timeline</h2><span class="tag">Sep 5 &middot; all times PT</span></div>
+  <div class="sec-body">
+    <ul class="dayline">
+      <li><time>5:00 PM</time><div class="what"><b>Registration</b><span>Both drivers check in with ID; have SWS DINs ready. Get weighed for ballast here &mdash; note your assigned ballast.</span></div></li>
+      <li><time>5:30 PM</time><div class="what"><b>Briefing</b><span>This is where the unknowns get answered. Bring the question list below &mdash; pit procedure, penalties, and stint rules are decided here, not in the SWS rulebook.</span></div></li>
+      <li><time>6:00 PM</time><div class="what"><b>Practice / Qualifying &mdash; 30 min</b><span>Sheet says "10 minutes per driver" (written for 3-driver teams). Confirm at briefing how 30 min splits across 2 drivers.</span></div></li>
+      <li><time>6:45 PM</time><div class="what"><b>Grid walk</b><span>Use it: walk the pit entry, kart-swap zone and exit. Agree exactly where the pit board hangs and rehearse the changeover path once on foot.</span></div></li>
+      <li class="race"><time>7:00 PM</time><div class="what"><b>Green flag &mdash; 3-hour race</b><span>9 &times; 20 min stints. Sunset 7:04 PM &mdash; starter takes the glare stint.</span></div></li>
+      <li><time>10:15 PM</time><div class="what"><b>Podium</b><span>Results upload to sodiwseries.com within 10 days; check the team name and both driver names appear on the proof of result.</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<section id="planner">
+  <div class="sec-head"><h2>Stint planner</h2><span class="tag">Tap a stint to swap driver</span></div>
+  <div class="sec-body">
+    <p>Nine stints, two drivers: someone drives five. Give the five to whichever of you is <em>more consistent over 20 minutes</em> (not whoever has the best single lap), and give that same driver the last stint &mdash; stint 9 is where tired teams throw it away. This planner saves on this device, so set it now and pull it up on race day.</p>
+    <div class="stint-row" id="stintRow" role="group" aria-label="Stint assignments"></div>
+    <div class="planner-bar">
+      <div class="totals" id="totals"></div>
+      <button class="preset" data-plan="WMWMWMWMW">Alternate &middot; Will &times;5</button>
+      <button class="preset" data-plan="MWMWMWMWM">Alternate &middot; Matt &times;5</button>
+      <button class="preset" data-plan="WMWMMWWMW">Mid-race doubles</button>
+    </div>
+    <div class="plan-warn" id="planWarn" aria-live="polite"></div>
+    <div class="callout"><b>Default recommendation: pure alternation.</b> You swap karts every stint anyway, so a driver change costs you nothing extra &mdash; and alternating caps every rest gap at 20 minutes, which in Vegas heat is worth more than any theoretical gain from double-stinting. Only double-stint if the briefing reveals that driver changes cost extra time versus a same-driver kart swap.</div>
+    <div class="callout"><b>Confirm at briefing:</b> may the same driver take consecutive stints at all? Some SWS tracks mandate a driver change at every rotation or set a max drive time per driver. If changes are mandatory every stint, alternation is forced and the only decision left is who starts.</div>
+  </div>
+</section>
+
+<section id="quali">
+  <div class="sec-head"><h2>Qualifying plan</h2><span class="tag">6:00 PM &middot; random kart</span></div>
+  <div class="sec-body">
+    <p><b>Don't over-invest here.</b> Your qualifying kart is randomly assigned and you hand it back before the race &mdash; a mega lap in a fast kart or a doomed lap in a slow one, either way it only buys grid position for a 3-hour race with 8 rotations. Worth having, not worth risk.</p>
+    <p>The plan that follows from that:</p>
+    <p><b>Faster qualifier goes second</b> in the session &mdash; track is slightly cooler and more rubbered every minute after 6 PM. Use the first runner's laps as the scout report: kart feel, where the grip is, traffic patterns.</p>
+    <p><b>Hunt clean air, not the perfect lap.</b> With up to 16 teams sharing one track, a traffic-free launch matters more than tenths. Build one out-lap gap, do 2&ndash;3 push laps, and bank it.</p>
+    <p><b>Whoever qualifies does not have to start.</b> Confirm at briefing whether the starting driver is free choice &mdash; if it is, you can give quali to your one-lap driver and the glare-heavy first stint to whoever handles low sun better.</p>
+  </div>
+</section>
+
+<section id="pits">
+  <div class="sec-head"><h2>Rotations &mdash; the 8 moments that decide the race</h2><span class="tag">Kart swap every stint</span></div>
+  <div class="sec-body">
+    <p>With equal machinery and fixed stints, almost all recoverable time lives in the 8 rotations. A rehearsed changeover beats a fast lap every time. Until the briefing defines the exact procedure, build around this default choreography:</p>
+    <div class="tbl-wrap"><table>
+      <tr><th class="mono">T&ndash;5:00</th><td>Incoming driver: last drink done, helmet and gloves on, balaclava set. Stop watching the timing screen.</td></tr>
+      <tr><th class="mono">T&ndash;3:00</th><td>Incoming driver walks to the swap zone. Pit board goes up for the driver on track: <span class="board">3 MIN</span></td></tr>
+      <tr><th class="mono">T&ndash;1:00</th><td>Board: <span class="board">IN NOW</span> (or as the track's rotation signal dictates). Incoming driver at the assigned kart lane.</td></tr>
+      <tr><th class="mono">T&ndash;0:00</th><td>Swap. Outgoing driver <b>carries the ballast handoff</b> if ballast is per-team, confirms belts/seat insert for the new kart, points out any kart issue to staff immediately &mdash; before the new stint starts, not after.</td></tr>
+      <tr><th class="mono">T+2:00</th><td>Outgoing driver drinks first, then debriefs to the board (kart feel, track spots), then rests. Ten of your twenty rest minutes are for recovery, not spectating.</td></tr>
+    </table></div>
+    <div class="callout"><b>Kart handover intel is your only scouting tool.</b> You inherit a different kart every stint &mdash; likely one another team just ran. Agree a 5-second hand signal for "this kart is bad" so the incoming driver knows to adapt the first lap, not discover it in turn 1.</div>
+  </div>
+</section>
+
+<section id="signals">
+  <div class="sec-head"><h2>No radios: the signal book</h2><span class="tag">Agree these before Saturday</span></div>
+  <div class="sec-body">
+    <p>Radios are banned at your track, so the resting driver <em>is</em> the pit wall. Fix one board position on the fence (pick it at the 6:45 grid walk, somewhere on a straight with time to read), show the board for 2 consecutive laps minimum, and keep the vocabulary this small:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Board</th><th>Means</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><span class="board">P4</span></td><td>Current position</td><td>Show every 3&ndash;4 laps by default</td></tr>
+        <tr><td><span class="board">+2.5</span> / <span class="board">&ndash;4.0</span></td><td>Gap to kart ahead / behind</td><td>Only when a fight is live</td></tr>
+        <tr><td><span class="board">PUSH</span></td><td>Rival in reach &mdash; go now</td><td>Use sparingly or it means nothing</td></tr>
+        <tr><td><span class="board">EASY</span></td><td>Hold position, save energy</td><td>Big gap both ways, or last laps of a stint</td></tr>
+        <tr><td><span class="board">5 MIN</span> / <span class="board">3 MIN</span></td><td>Stint time remaining</td><td>Driver has no clock &mdash; this is essential</td></tr>
+        <tr><td><span class="board">IN NOW</span></td><td>Rotation this lap</td><td>Follow the track's own signal if they run one</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:14px"><b>Driver-to-pit hand signals</b> (agree these too): raised fist = kart problem, point at rear = engine/brakes, thumbs-up on the straight = all fine, tapping helmet = can't read the board / show again.</p>
+    <div class="callout"><b>Blind window:</b> in the last ~3 minutes of every stint the board is unmanned &mdash; the resting driver is walking to the swap zone. Show position and time <em>before</em> T&ndash;3:00; the driver on track should assume no new information after that.</div>
+  </div>
+</section>
+
+<section id="body">
+  <div class="sec-head"><h2>Ballast, heat, and the human machine</h2><span class="tag">Vegas in September</span></div>
+  <div class="sec-body">
+    <p><b>Ballast is confirmed but the target weight is not published.</b> Call the track and get the equalization number and both of your weights into the plan. If ballast brings you to a fixed combined figure, weight difference between you two stops mattering; if it's stepped (weight classes), know which class each of you lands in before Saturday. Weigh in wearing what you'll drive in.</p>
+    <p><b>Heat is a real opponent.</b> Early-September Las Vegas: ~100&deg;F daytime, still ~90&deg;F at the 7 PM green flag, cooling through the race. Between stints: shade, electrolytes (not just water), helmet off, sit down. Salty snacks between stints, real meal before 4 PM, nothing heavy after. The driver doing 5 stints sweats through 100 minutes of racing &mdash; hydrate starting Friday, not Saturday afternoon.</p>
+    <p><b>Hands and ribs give out before lungs do.</b> 100 minutes of rental-kart steering without power assistance: bring proper karting gloves (two pairs if you have them &mdash; dry pair mid-race feels incredible) and consider a rib protector; the RT10 seat plus 8 different karts' worth of seat fit is a rib bruise generator.</p>
+    <p class="note">Eligibility floor per the event sheet: 15 years old and 120 lbs minimum &mdash; both of you clear it, but bring ID; the track can ask for identity proof against your SWS licence.</p>
+  </div>
+</section>
+
+<section id="points">
+  <div class="sec-head"><h2>What this race is worth (SWS)</h2><span class="tag">Endurance Cup 2026</span></div>
+  <div class="sec-body">
+    <p>Scoring is field-size driven: the winner takes 1,000 + number of SWS teams (so ~1,008&ndash;1,016 pts here), last place takes just the participation floor, a logarithmic curve in between &mdash; plus <b>+10 bonus points to every team</b> for the 3-hour duration. Your season ranking sums your team's 12 best results.</p>
+    <div class="callout"><b>Thinking about SWS International Finals?</b> A 2-driver team can race and score all year but <em>cannot qualify for the Finals</em> &mdash; qualification requires 3&ndash;4 drivers with at least 3 of them having driven 3+ times with the team in 2026. If that's an ambition, recruit driver #3 now: between Aug 1 and Dec 31 you can only <em>add</em> drivers to the team (additions are irreversible, no deletions), and they'd need 3 races before New Year's Eve. The event needs 6+ SWS teams to count for points at all &mdash; another reason the 8-team bubble matters.</div>
+    <p class="note">Also in the rulebook: a team may only run one endurance event per day, a driver can belong to max 3 teams, and results go definitive 10 days after upload &mdash; check yours promptly and raise any complaint through the track (SWS won't take it directly from you).</p>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="sec-head"><h2>Call the track: 702-405-7223</h2><span class="tag">Unknowns the SWS rulebook doesn't cover</span></div>
+  <div class="sec-body">
+    <p>The SWS regulation deliberately leaves race procedure to the organizer. Everything below is track-defined and strategy-critical &mdash; get answers before Saturday, or at the 5:30 briefing at the latest:</p>
+    <ol class="qa">
+      <li><div><b>Are driver changes mandatory at every rotation, and is there a max drive time per driver?</b><span>Decides whether double-stinting is even legal &mdash; the whole planner hinges on this.</span></div></li>
+      <li><div><b>What exactly happens at a rotation?</b><span>Race suspended and everyone swaps at once, or rolling pit windows? Is the 20 min on-track time or including the swap? How is the running order preserved through the swap?</span></div></li>
+      <li><div><b>What is the ballast equalization target and increment?</b><span>And is it weighed per driver per stint, or fixed per seat?</span></div></li>
+      <li><div><b>How does the 30-min qualifying split across a 2-driver team, and must both drivers qualify?</b><span>The "10 min per driver" note assumes 3 drivers.</span></div></li>
+      <li><div><b>Can we choose our starting driver freely?</b><span>Or must the qualifier start?</span></div></li>
+      <li><div><b>What's the penalty system?</b><span>Contact, jump start, pit lane conduct &mdash; and is there a kart-swap procedure penalty (e.g., belts done by staff only)?</span></div></li>
+      <li><div><b>Is a pit board allowed at the fence, and where?</b><span>Some tracks restrict where spectators/teammates can signal from. Also: any live timing screen visible from the pit?</span></div></li>
+      <li><div><b>What happens if a kart fails mid-stint?</b><span>Swap kart with laps credited, or tough luck? Changes how hard you push a suspect kart.</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<section id="checklist">
+  <div class="sec-head"><h2>Race week checklist</h2><span class="tag">Saves on this device</span></div>
+  <div class="sec-body">
+    <ul class="check" id="checkList">
+      <li data-k="din-w"><input type="checkbox" id="c1"><label for="c1"><b>William: SWS account (DIN) live</b><span>sodiwseries.com &mdash; verified email, correct name/DOB (results must match ID)</span></label></li>
+      <li data-k="din-m"><input type="checkbox" id="c2"><label for="c2"><b>Matthew: SWS account (DIN) live</b><span>Same &mdash; no DIN means ghost-driver scoring at 90% points</span></label></li>
+      <li data-k="team"><input type="checkbox" id="c3"><label for="c3"><b>SABLE Motorsports team created, both drivers joined</b><span>Team manager set; name locked for 2026</span></label></li>
+      <li data-k="prereg"><input type="checkbox" id="c4"><label for="c4"><b>Team pre-registered for US-VEG-142967 with both drivers named</b><span>On the event page &mdash; non-preregistered teams can be turned away</span></label><span class="due">BY SEP 4</span></li>
+      <li data-k="pay"><input type="checkbox" id="c5"><label for="c5"><b>$420 paid to Exotics Racing by card</b><span>702-405-7223 &mdash; confirmation in hand</span></label><span class="due">SEP 4 &middot; 4PM PT</span></li>
+      <li data-k="bubble"><input type="checkbox" id="c6"><label for="c6"><b>Sep 4: confirmed 8+ teams still entered</b><span>Below 8 the race can be cancelled &mdash; one phone call saves a wasted trip</span></label><span class="due">SEP 4</span></li>
+      <li data-k="track"><input type="checkbox" id="c7"><label for="c7"><b>Track questions answered (section above)</b><span>Stint rules, ballast target, quali split, pit procedure</span></label></li>
+      <li data-k="signals"><input type="checkbox" id="c8"><label for="c8"><b>Signal book agreed with Matthew</b><span>Board vocabulary + hand signals, 10-minute conversation</span></label></li>
+      <li data-k="plan"><input type="checkbox" id="c9"><label for="c9"><b>Stint plan locked in the planner</b><span>Who takes 5, who starts (glare), who anchors stint 9</span></label></li>
+      <li data-k="kit"><input type="checkbox" id="c10"><label for="c10"><b>Kit packed</b><span>Gloves (&times;2), balaclavas, tinted + clear visors or tear-offs, rib protector, electrolytes, cooler, salty snacks, sunscreen, IDs, phone with this page</span></label></li>
+      <li data-k="hydrate"><input type="checkbox" id="c11"><label for="c11"><b>Hydration started Friday</b><span>Both drivers &mdash; Vegas doesn't forgive same-day hydration</span></label></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div>SABLE Motorsports &middot; W. Yi / M. Hergenroeder</div>
+  <div>SWS Endurance Cup &middot; Ref US-VEG-142967</div>
+  <div>Sources: event sheet + SWS Official Regulation 2026 (Jan 27, 2026)</div>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var PAY = new Date("2026-09-04T16:00:00-07:00");
+  var RACE = new Date("2026-09-05T19:00:00-07:00");
+  function fmt(ms){
+    if (ms <= 0) return "PASSED";
+    var s = Math.floor(ms/1000);
+    var d = Math.floor(s/86400); s -= d*86400;
+    var h = Math.floor(s/3600);  s -= h*3600;
+    var m = Math.floor(s/60);
+    return d + "d " + String(h).padStart(2,"0") + "h " + String(m).padStart(2,"0") + "m";
+  }
+  function tick(){
+    var now = Date.now();
+    document.getElementById("cd-pay").textContent = fmt(PAY - now);
+    document.getElementById("cd-race").textContent = fmt(RACE - now);
+  }
+  tick(); setInterval(tick, 30000);
+
+  /* ---- Stint planner ---- */
+  var STARTS = ["7:00","7:20","7:40","8:00","8:20","8:40","9:00","9:20","9:40"];
+  var KEY = "sable-stints";
+  var plan = "WMWMWMWMW";
+  try { var saved = localStorage.getItem(KEY); if (saved && /^[WM]{9}$/.test(saved)) plan = saved; } catch(e){}
+
+  var row = document.getElementById("stintRow");
+  function save(){ try { localStorage.setItem(KEY, plan); } catch(e){} }
+  function render(){
+    row.innerHTML = "";
+    for (var i=0;i<9;i++){
+      (function(i){
+        var who = plan[i];
+        var cell = document.createElement("div");
+        cell.className = "stint " + (who==="W" ? "will" : "matt");
+        cell.tabIndex = 0;
+        cell.setAttribute("role","button");
+        cell.setAttribute("aria-label","Stint "+(i+1)+", "+(who==="W"?"William":"Matthew")+". Activate to swap.");
+        cell.innerHTML = '<div class="n">S'+(i+1)+'</div><div class="who">'+(who==="W"?"WILL":"MATT")+'</div><div class="t">'+STARTS[i]+' PM</div>';
+        function toggle(){
+          plan = plan.slice(0,i) + (plan[i]==="W"?"M":"W") + plan.slice(i+1);
+          save(); render();
+        }
+        cell.addEventListener("click", toggle);
+        cell.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); }});
+        row.appendChild(cell);
+      })(i);
+    }
+    var w = (plan.match(/W/g)||[]).length, m = 9-w;
+    document.getElementById("totals").innerHTML =
+      '<span class="w">WILL '+w+' stints &middot; '+(w*20)+' min</span> &nbsp;/&nbsp; <span class="m">MATT '+m+' stints &middot; '+(m*20)+' min</span>';
+    var warn = document.getElementById("planWarn");
+    var runs = plan.match(/W+|M+/g), maxRun = 0;
+    for (var r=0;r<runs.length;r++) if (runs[r].length>maxRun) maxRun = runs[r].length;
+    if (w===0 || m===0) { warn.textContent = "One driver takes the whole race — that's a solo run, not a plan."; warn.classList.remove("plan-ok"); }
+    else if (maxRun>=3) { warn.textContent = "Warning: "+maxRun+" consecutive stints ("+(maxRun*20)+" min straight) in Vegas heat — confirm it's even allowed."; warn.classList.remove("plan-ok"); }
+    else if (maxRun===2) { warn.textContent = "Contains a double stint (40 min) — legal only if the track allows consecutive stints. Ask at briefing."; warn.classList.remove("plan-ok"); }
+    else { warn.textContent = "Pure alternation — every rest gap 20 min. Solid."; warn.classList.add("plan-ok"); }
+  }
+  document.querySelectorAll("button.preset").forEach(function(b){
+    b.addEventListener("click", function(){ plan = b.getAttribute("data-plan"); save(); render(); });
+  });
+  render();
+
+  /* ---- Checklist ---- */
+  var CKEY = "sable-checklist";
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(CKEY) || "{}") || {}; } catch(e){ state = {}; }
+  document.querySelectorAll("#checkList li").forEach(function(li){
+    var k = li.getAttribute("data-k"), box = li.querySelector("input");
+    if (state[k]) { box.checked = true; li.classList.add("done"); }
+    box.addEventListener("change", function(){
+      li.classList.toggle("done", box.checked);
+      state[k] = box.checked;
+      try { localStorage.setItem(CKEY, JSON.stringify(state)); } catch(e){}
+    });
+  });
+})();
+</script>
+</body>
+</html>

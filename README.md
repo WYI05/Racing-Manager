@@ -1,13 +1,29 @@
-# SABLE Motorsports — Vegas Race Book
+# SABLE Racing Manager
 
-Pit-wall strategy site for the **SWS Endurance Cup 3-hour race** at Vegas Superkarts
-(Exotics Racing), Las Vegas — **September 5, 2026**, ref `US-VEG-142967`.
+Multi-race pit-wall manager plus the race book for the **SWS Endurance Cup 3-hour
+race** at Vegas Superkarts (Exotics Racing), Las Vegas — **September 5, 2026**,
+ref `US-VEG-142967`. Drivers: William Yi & Matthew Hergenroeder.
 
-Drivers: William Yi & Matthew Hergenroeder.
+Live site: https://wyi05.github.io/Racing-Manager/
 
-## What's in it
+## `index.html` — Racing Manager (any race)
 
-`index.html` is a self-contained single page (open it directly in a browser, no build step):
+Self-contained app, no build step, no backend. Data is kept in `localStorage`
+with JSON **Export/Import** to move it between phones.
+
+- **Multi-race**: create/switch/delete races; the Vegas 2026 event ships pre-seeded.
+- **Setup**: event, track, date, green-flag time, stint count/length, driver roster.
+- **Quali**: per-driver lap logging with automatic best; grid position.
+- **Race**: stint table (driver, kart #, positions in/out, best lap, notes),
+  per-stint lap logger, a stint countdown with pit-board prompts (5:00 / 3:00 /
+  IN NOW), and a lap stopwatch that logs straight into a stint.
+- **Rivals**: competitor teams with per-stint positions and a position-trace chart.
+- **Analysis**: best/avg/σ tiles, per-driver table, lap-time chart with stint
+  boundaries.
+
+## `vegas-race-book.html` — Vegas strategy book
+
+The original single-page race book (open it directly, no build step):
 
 - **Deadline panel** — live countdowns to the real cutoff (payment + full driver
   registration by **Sep 4, 4:00 PM PT**) and the green flag.
