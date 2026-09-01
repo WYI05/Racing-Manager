@@ -1,8 +1,9 @@
-# SABLE Racing Manager
+# Racing Manager
 
-Multi-race pit-wall manager plus the race book for the **SWS Endurance Cup 3-hour
-race** at Vegas Superkarts (Exotics Racing), Las Vegas — **September 5, 2026**,
-ref `US-VEG-142967`. Drivers: William Yi & Matthew Hergenroeder.
+Multi-race pit-wall manager for endurance karting: pre-race strategy building and
+live race data. Ships with one seeded race (the SWS Endurance Cup 3-hour at Vegas
+Superkarts, September 5, 2026) whose team details live in the race data, not in
+the product.
 
 Live site: https://wyi05.github.io/Racing-Manager/
 
