@@ -120,9 +120,123 @@
   footer{margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 22px}
   .hidden{display:none}
   @media (max-width:640px){ section.pane{padding:14px 12px 18px} body{font-size:14px} }
+
+  /* ============ landing hero (merged Fastshot stage) ============ */
+  #heroStage{position:fixed;inset:0;z-index:50;background:#0a0d12;overflow:hidden;opacity:1;transition:opacity .45s ease}
+  #heroStage.bye{opacity:0;pointer-events:none}
+  #heroStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #heroStage .hs-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.55),rgba(10,13,18,.25) 40%,rgba(10,13,18,.6))}
+  #heroStage .hs-frame{position:absolute;inset:0;display:flex;flex-direction:column;padding:clamp(20px,3.4vh,44px) clamp(24px,4.2vw,60px) clamp(22px,4.4vh,56px)}
+  #heroStage button{background:none;border:0;color:inherit;padding:0}
+  #heroStage button:hover{color:inherit;border:0}
+  .hs-nav{display:flex;align-items:center;justify-content:space-between;position:relative}
+  .hs-brand{display:flex;align-items:center;gap:11px;cursor:default}
+  .hs-brand svg{width:clamp(28px,2.6vw,34px);height:auto}
+  .hs-brand b{font-family:var(--disp);text-transform:uppercase;font-weight:800;font-size:clamp(17px,1.6vw,21px);letter-spacing:.04em;text-shadow:0 1px 10px rgba(0,0,0,.35)}
+  .hs-links{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:clamp(20px,3.2vw,50px)}
+  .hs-links button{font-family:var(--body);font-size:clamp(14px,1.5vw,19px);color:#fff;cursor:pointer;text-shadow:0 1px 12px rgba(0,0,0,.4);transition:opacity .18s ease}
+  .hs-links button:hover{opacity:.72;color:#fff}
+  .hs-cta{font-family:var(--body);font-weight:600;font-size:clamp(13px,1.1vw,15px);color:#1a1205 !important;background:linear-gradient(180deg,#ffd27a 0%,#ffb000 100%) !important;
+    border-radius:12px !important;padding:11px 20px !important;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 14px rgba(0,0,0,.3)}
+  .hs-cta:hover{filter:brightness(1.08);color:#1a1205 !important}
+  .hs-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(26px,5vh,50px)}
+  .hs-h1{font-family:var(--disp);text-transform:uppercase;font-weight:800;font-size:clamp(34px,5.2vw,64px);line-height:1.02;letter-spacing:.015em;color:#fff;text-align:center;text-wrap:balance;text-shadow:0 2px 22px rgba(0,0,0,.4)}
+  .hs-h1 .dim{color:rgba(255,255,255,.72)}
+  .hs-card{width:min(100%,clamp(500px,74vw,720px));border-radius:clamp(17px,2.1vw,26px);background:rgba(24,28,35,.9);
+    -webkit-backdrop-filter:blur(24px) saturate(112%);backdrop-filter:blur(24px) saturate(112%);
+    box-shadow:inset 0 0 0 1px rgba(214,228,255,.14), 0 22px 60px rgba(0,0,0,.35);
+    padding:clamp(15px,1.9vw,24px);display:flex;flex-direction:column;gap:clamp(20px,4.4vh,42px)}
+  .hs-ph{color:#93a0b3;font-size:clamp(12px,1.35vw,14.5px);line-height:1.4;font-family:var(--body)}
+  .hs-ph .mono{color:#b6c2d4}
+  .hs-tools{display:flex;flex-wrap:wrap;align-items:center;gap:clamp(10px,1.4vw,18px)}
+  .hs-chips{display:flex;flex-wrap:wrap;gap:clamp(6px,.85vw,10px)}
+  .hs-chip{display:inline-flex;align-items:center;gap:6px;height:clamp(29px,3.4vh,34px);padding:0 clamp(9px,1vw,13px);border-radius:9px;
+    font-family:var(--mono);font-size:clamp(10px,1.05vw,12px);color:#a8b2c0;cursor:pointer;
+    background:linear-gradient(180deg,rgba(255,255,255,.088) 0%,rgba(255,255,255,.05) 45%,rgba(255,255,255,.038) 100%);
+    border:1px solid rgba(255,255,255,.07) !important}
+  .hs-chip:hover{color:#e9eef5 !important;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.07))}
+  .hs-chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .hs-right{display:flex;align-items:center;margin-left:auto}
+  .hs-model{font-family:var(--mono);font-size:clamp(10px,1.05vw,12px);color:#93a0b3;letter-spacing:.06em}
+  .hs-send{margin-left:clamp(12px,1.3vw,18px);width:clamp(34px,3.5vw,40px);height:clamp(34px,3.5vw,40px);border-radius:50% !important;
+    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+    background:linear-gradient(163deg,#ffd27a 0%,#ffb000 46%,#e09000 100%) !important;
+    box-shadow:0 3px 12px rgba(224,144,0,.4)}
+  .hs-send svg{width:13px}
+  .hs-send:hover{filter:brightness(1.07)}
+  .hs-send:active{transform:scale(.95)}
+  .hs-proof{display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.2vh,24px)}
+  .hs-by{font-size:clamp(12px,1vw,14px);color:rgba(255,255,255,.9);text-shadow:0 1px 12px rgba(0,0,0,.4)}
+  .hs-logos{display:flex;align-items:center;gap:clamp(20px,4vw,56px);font-family:var(--disp);text-transform:uppercase;font-weight:700;
+    font-size:clamp(15px,1.7vw,22px);letter-spacing:.06em;color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.4)}
+  @media (max-width:599px){
+    .hs-links{display:none}
+    .hs-tools{flex-direction:column;align-items:stretch;gap:12px}
+    .hs-right{margin-left:0;justify-content:flex-start}
+    .hs-send{margin-left:auto}
+  }
+  @media (prefers-reduced-motion: no-preference){
+    @keyframes hsIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+    @keyframes hsPanel{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+    #heroStage.anim .hs-nav{animation:hsIn .55s cubic-bezier(.22,1,.36,1) .06s both}
+    #heroStage.anim .hs-h1{animation:hsIn .9s cubic-bezier(.16,1,.3,1) .25s both}
+    #heroStage.anim .hs-card{animation:hsPanel .85s cubic-bezier(.16,1,.3,1) .5s both}
+    #heroStage.anim .hs-proof{animation:hsIn .55s cubic-bezier(.22,1,.36,1) .9s both}
+  }
 </style>
 </head>
 <body>
+<div id="heroStage" hidden>
+  <video autoplay muted loop playsinline
+    src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"></video>
+  <div class="hs-shade"></div>
+  <div class="hs-frame">
+    <header class="hs-nav">
+      <div class="hs-brand">
+        <svg viewBox="0 0 34 34" aria-hidden="true">
+          <circle cx="17" cy="17" r="17" fill="#ffb000"/>
+          <circle cx="17" cy="17" r="8.6" fill="#ffffff"/>
+          <circle cx="17" cy="17" r="3.7" fill="#151519"/>
+        </svg>
+        <b>SABLE Racing</b>
+      </div>
+      <nav class="hs-links" aria-label="Sections">
+        <button data-enter="strategy">Strategy</button>
+        <button data-enter="race">Race</button>
+        <button data-enter="rivals">Rivals</button>
+        <button data-enter="analysis">Analysis</button>
+      </nav>
+      <button class="hs-cta" data-enter="">Open pit wall</button>
+    </header>
+
+    <main class="hs-hero">
+      <h1 class="hs-h1">Plan the race.<br><span class="dim">Run the pit wall.</span></h1>
+      <div class="hs-card">
+        <p class="hs-ph">Vegas 3H &mdash; <span class="mono">9 &times; 20 min</span> stints, kart rotation every swap, no radios. Build the stint plan, log every lap, read the race&hellip;</p>
+        <div class="hs-tools">
+          <div class="hs-chips">
+            <button class="hs-chip" data-enter="strategy"><span class="dot" style="background:#ffb000"></span>Stint plan</button>
+            <button class="hs-chip" data-enter="race"><span class="dot" style="background:#4fc3f7"></span>Lap stopwatch</button>
+            <button class="hs-chip" data-enter="rivals"><span class="dot" style="background:#41d98d"></span>Position trace</button>
+          </div>
+          <div class="hs-right">
+            <span class="hs-model">SWS &middot; ENDURANCE</span>
+            <button class="hs-send" data-enter="" aria-label="Open pit wall">
+              <svg viewBox="0 0 12 13" fill="#1a1205" aria-hidden="true">
+                <path d="M6 0l5.6 5.6-1.7 1.7L7.2 4.6V13H4.8V4.6L2.1 7.3.4 5.6Z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="hs-proof">
+      <p class="hs-by">On the pit wall for</p>
+      <div class="hs-logos"><span>SABLE Motorsports</span><span>Vegas Superkarts</span></div>
+    </footer>
+  </div>
+</div>
 <div class="wrap">
 
 <header>
@@ -145,6 +259,7 @@
 <footer>
   <div>SABLE Motorsports &middot; data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
   <div id="footLink"></div>
+  <div><a href="#" id="showHero">landing page</a></div>
 </footer>
 
 </div>
@@ -753,8 +868,32 @@ setInterval(function(){
   }
 }, 250);
 
+/* ---------- landing hero ---------- */
+var heroStage = document.getElementById("heroStage");
+function heroShow(){
+  heroStage.hidden = false;
+  heroStage.classList.remove("bye");
+  heroStage.classList.add("anim");
+  document.body.style.overflow = "hidden";
+}
+function heroEnter(tabTo){
+  try { localStorage.setItem("sable-hero-seen", "1"); } catch(e){}
+  heroStage.classList.add("bye");
+  document.body.style.overflow = "";
+  setTimeout(function(){ heroStage.hidden = true; heroStage.classList.remove("anim"); }, 480);
+  if (tabTo){ tab = tabTo; render(); }
+}
+heroStage.addEventListener("click", function(e){
+  var b = e.target.closest("[data-enter]");
+  if (b) heroEnter(b.getAttribute("data-enter"));
+});
+document.getElementById("showHero").addEventListener("click", function(e){ e.preventDefault(); heroShow(); });
+
 /* ---------- boot ---------- */
 load(); render();
+var heroSeen = false;
+try { heroSeen = !!localStorage.getItem("sable-hero-seen"); } catch(e){}
+if (!heroSeen) heroShow();
 </script>
 </body>
 </html>
