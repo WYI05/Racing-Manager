@@ -54,6 +54,9 @@ in place.
 - **Series**: championship standings across every race sharing a series name.
   Configurable points by position, fastest-lap and pole bonuses, drop-worst
   results, and manual adjustments for penalties or rounds held outside the app.
+  Multi-class scoring ranks each entry within its class (set in Setup → Event
+  and Rivals) and shows one standings table per class; class positions also
+  appear in Rivals, the Race result, and the Map tower.
 
 ## `vegas-race-book.html` — Vegas strategy book
 

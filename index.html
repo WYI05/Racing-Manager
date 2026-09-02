@@ -164,6 +164,7 @@
   .pc-n,.pc-t{font-family:var(--mono);font-size:10px;letter-spacing:.08em}
   .pc-who{font-size:14px;font-weight:700;letter-spacing:.01em;line-height:1.3}
   #pasteBox{width:100%;box-sizing:border-box}
+  .tw-cls{font-family:var(--mono);font-size:9.5px;color:var(--accent-soft);margin-left:6px;letter-spacing:.06em}
   .lap-chip .secs{font-size:10px;color:var(--ink-faint);letter-spacing:.02em}
   .plan-lens{margin-top:6px}
   .plan-lens input{max-width:none;width:100%;text-align:center;font-family:var(--mono)}
@@ -485,6 +486,18 @@ function parseLapOrSectors(str, n){
 function secsTag(secs){ return secs ? '<small class="secs">' + secs.map(function(x){ return fmtLap(x); }).join(" | ") + '</small>' : ""; }
 function posNum(v){ var m = String(v || "").match(/\d+/); return m ? +m[0] : null; }
 function teamKey(nm){ return String(nm || "").trim().toLowerCase(); }
+/* entries with overall positions → class positions (rank within the same class, blank class = its own group) */
+function raceEntries(r){
+  return [{name:r.meta.name || "Us", pos:posNum(r.result.pos), cls:String(r.meta.cls || "").trim(), us:true}]
+    .concat(r.rivals.map(function(rv){ return {name:rv.name, pos:posNum(rv.fin), cls:String(rv.cls || "").trim(), us:false}; }));
+}
+function classPositions(entries){
+  var by = {}, out = {};
+  entries.forEach(function(e){ if (!e.pos) return; var k = teamKey(e.cls); (by[k] = by[k] || []).push(e); });
+  Object.keys(by).forEach(function(k){ by[k].sort(function(a, b){ return a.pos - b.pos; }).forEach(function(e, i){ out[teamKey(e.name)] = i + 1; }); });
+  return out;
+}
+function hasClasses(r){ return !!(String(r.meta.cls || "").trim() || r.rivals.some(function(rv){ return String(rv.cls || "").trim(); })); }
 function seriesNames(){
   var seen = {}, out = [];
   Object.keys(store.races).forEach(function(id){ var nm = String(store.races[id].meta.series || "").trim(); if (nm && !seen[teamKey(nm)]){ seen[teamKey(nm)] = 1; out.push(nm); } });
@@ -492,7 +505,8 @@ function seriesNames(){
 }
 function seriesCfg(name){
   var k = teamKey(name);
-  return store.series[k] = store.series[k] || {scheme:"25, 18, 15, 12, 10, 8, 6, 4, 2, 1", fl:1, pole:0, drop:0, adj:[]};
+  var c = store.series[k] = store.series[k] || {scheme:"25, 18, 15, 12, 10, 8, 6, 4, 2, 1", fl:1, pole:0, drop:0, adj:[], mode:"overall"};
+  if (!c.mode) c.mode = "overall"; return c;
 }
 function seriesRaces(name){
   var k = teamKey(name);
@@ -502,17 +516,20 @@ function seriesRaces(name){
 }
 function standings(name){
   var cfg = seriesCfg(name), pts = String(cfg.scheme).split(/[,\s]+/).map(Number).filter(function(n){ return !isNaN(n); });
-  var races = seriesRaces(name), teams = {};
-  function add(nm, rid, p, why){
+  var races = seriesRaces(name), teams = {}, byClass = cfg.mode === "class";
+  function add(nm, rid, p, why, cls){
     var k = teamKey(nm); if (!k) return;
-    var t = teams[k] = teams[k] || {name:String(nm).trim(), rounds:{}, why:{}, adj:0, us:false};
+    var t = teams[k] = teams[k] || {name:String(nm).trim(), rounds:{}, why:{}, adj:0, us:false, cls:""};
+    if (cls) t.cls = cls;
     if (rid === "adj") t.adj += p; else { t.rounds[rid] = (t.rounds[rid] || 0) + p; t.why[rid] = (t.why[rid] || []).concat(why ? [why] : []); }
   }
   races.forEach(function(x){
-    var r = x.r, usName = r.meta.name || "Us";
-    add(usName, x.id, 0); teams[teamKey(usName)].us = true;
-    [{name:usName, pos:posNum(r.result.pos)}].concat(r.rivals.map(function(rv){ return {name:rv.name, pos:posNum(rv.fin)}; })).forEach(function(e){
-      if (e.pos) add(e.name, x.id, pts[e.pos - 1] || 0, "P" + e.pos);
+    var r = x.r, usName = r.meta.name || "Us", ents = raceEntries(r), cp = classPositions(ents);
+    add(usName, x.id, 0, null, ents[0].cls); teams[teamKey(usName)].us = true;
+    ents.forEach(function(e){
+      if (!e.pos) return;
+      var rank = byClass ? cp[teamKey(e.name)] : e.pos;
+      add(e.name, x.id, pts[rank - 1] || 0, (byClass ? "C" : "P") + rank + (byClass ? " (P" + e.pos + ")" : ""), e.cls);
     });
     if (+cfg.fl && r.result.fl) add(r.result.fl, x.id, +cfg.fl, "FL");
     if (+cfg.pole && r.result.pole) add(r.result.pole, x.id, +cfg.pole, "pole");
@@ -525,9 +542,9 @@ function standings(name){
       dropped = idx.map(function(o){ return o.i; });
     }
     var total = scores.reduce(function(a, v, i){ return a + (dropped.indexOf(i) >= 0 ? 0 : v); }, 0) + t.adj;
-    return {name:t.name, us:t.us, scores:scores, why:t.why, dropped:dropped, adj:t.adj, total:total};
+    return {name:t.name, us:t.us, cls:t.cls, scores:scores, why:t.why, dropped:dropped, adj:t.adj, total:total};
   }).sort(function(a, b){ return b.total - a.total || a.name.localeCompare(b.name); });
-  return {races:races, rows:rows, pts:pts};
+  return {races:races, rows:rows, pts:pts, byClass:byClass};
 }
 var GIFS = {
   home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4"],
@@ -937,6 +954,7 @@ function paneRace(){
     + '<div class="field"><label>Finish position</label><input type="text" class="mono" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="e.g. P2, 1st in class"></div>'
     + '<div class="field"><label>Laps completed</label><input type="text" class="mono" value="' + esc(r.result.laps) + '" data-res="laps" placeholder=""></div>'
     + '<div class="field"><label>Fastest lap (from data)</label><input type="text" class="mono" value="' + (allLaps(r).length ? fmtLap(Math.min.apply(null, allLaps(r).map(function(l){ return l.ms; }))) : "—") + '" disabled></div>'
+    + (hasClasses(r) ? '<div class="field"><label>Class position (computed)</label><input type="text" class="mono" value="' + (function(){ var c = classPositions(raceEntries(r))[teamKey(r.meta.name || "Us")]; return c ? "C" + c + " in " + esc(r.meta.cls || "no class") : "—"; })() + '" disabled></div>' : "")
     + teamPick("Fastest lap set by", "fl", r) + teamPick("Pole position", "pole", r)
     + '</div><p class="hint" style="margin-top:8px">Finish positions here and in the Rivals tab feed the Series standings; fastest lap and pole earn bonus points where the series awards them.</p>'
     + '<div class="field" style="margin-top:12px"><label>Debrief — what worked, what to change next time</label><textarea data-res="notes">' + esc(r.result.notes) + '</textarea></div>';
@@ -1152,16 +1170,17 @@ function raceState(r){
 function fmtHMS(ms){ var s=Math.max(0,Math.floor(ms/1000)); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
 function latestPositions(r){
   var n = r.plan.length;
-  var teams = [{name:r.meta.name||"US", us:true, pos:r.ourPos}].concat(r.rivals.map(function(rv){ return {name:rv.name, us:false, pos:rv.pos}; }));
+  var teams = [{name:r.meta.name||"US", us:true, pos:r.ourPos, cls:String(r.meta.cls || "").trim()}].concat(r.rivals.map(function(rv){ return {name:rv.name, us:false, pos:rv.pos, cls:String(rv.cls || "").trim()}; }));
   var out = [];
   teams.forEach(function(t){
     var p = null, si = -1;
     for (var i = n-1; i >= 0; i--){ var v = parseInt(t.pos[i],10); if (!isNaN(v)){ p = v; si = i; break; } }
     var prev = null;
     if (si > 0){ for (var j = si-1; j >= 0; j--){ var w = parseInt(t.pos[j],10); if (!isNaN(w)){ prev = w; break; } } }
-    if (p != null) out.push({name:t.name, us:t.us, pos:p, delta: prev == null ? 0 : (prev - p)});
+    if (p != null) out.push({name:t.name, us:t.us, pos:p, cls:t.cls, delta: prev == null ? 0 : (prev - p)});
   });
   out.sort(function(a,b){ return a.pos - b.pos; });
+  if (hasClasses(r)){ var cp = classPositions(out); out.forEach(function(t){ t.cpos = cp[teamKey(t.name)] || null; }); }
   return out;
 }
 function polarPt(r, deg){ var a = (deg-90)*Math.PI/180; return [170 + r*Math.cos(a), 170 + r*Math.sin(a)]; }
@@ -1178,7 +1197,7 @@ function paneMap(){
     pos.forEach(function(t){
       var d = t.delta > 0 ? '<span class="up">&#9650;' + t.delta + '</span>'
             : t.delta < 0 ? '<span class="dn">&#9660;' + (-t.delta) + '</span>' : '<span class="fl">&ndash;</span>';
-      h += '<div class="tw-row' + (t.us ? ' us' : '') + '"><span class="tw-pos">' + t.pos + '</span><span class="tw-tag">' + esc(t.name.slice(0,3).toUpperCase()) + '</span><span class="tw-name">' + esc(t.name) + '</span>' + d + '</div>';
+      h += '<div class="tw-row' + (t.us ? ' us' : '') + '"><span class="tw-pos">' + t.pos + '</span><span class="tw-tag">' + esc(t.name.slice(0,3).toUpperCase()) + '</span><span class="tw-name">' + esc(t.name) + (t.cpos ? ' <span class="tw-cls">' + esc(t.cls || "—") + ' C' + t.cpos + '</span>' : "") + '</span>' + d + '</div>';
     });
   } else h += '<p class="hint">Enter stint positions in the Rivals tab to populate the tower and the tags on the ring.</p>';
   h += '</div>';
@@ -1237,20 +1256,21 @@ function paneMap(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.plan.length;
-  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings.</p>';
+  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
-  h += '<th>Finish</th><th></th></tr></thead><tbody>';
+  var multi = hasClasses(r), cpos = classPositions(raceEntries(r));
+  h += '<th>Finish</th>' + (multi ? '<th>In class</th>' : "") + '<th></th></tr></thead><tbody>';
   h += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(r.meta.name || "Us") + '</span></td><td class="mono">' + esc(r.meta.carNo) + '</td><td>' + esc(r.meta.cls) + '</td>';
   for (var i2 = 0; i2 < n; i2++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(r.ourPos[i2]) + '" data-op="' + i2 + '"></td>';
-  h += '<td><input class="num" type="text" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="P?"></td><td></td></tr>';
+  h += '<td><input class="num" type="text" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="P?"></td>' + (multi ? '<td class="mono">' + (cpos[teamKey(r.meta.name || "Us")] ? "C" + cpos[teamKey(r.meta.name || "Us")] : "") + '</td>' : "") + '<td></td></tr>';
   r.rivals.forEach(function(rv, ri){
     h += '<tr><td><input type="text" value="' + esc(rv.name) + '" data-rvn="' + ri + '" style="min-width:130px"></td>'
       + '<td><input class="num" type="text" value="' + esc(rv.no) + '" data-rvno="' + ri + '" style="max-width:56px"></td>'
       + '<td><input type="text" value="' + esc(rv.cls) + '" data-rvc="' + ri + '" style="max-width:90px"></td>';
     for (var j = 0; j < n; j++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(rv.pos[j]) + '" data-rp="' + ri + ':' + j + '"></td>';
-    h += '<td><input class="num" type="text" value="' + esc(rv.fin) + '" data-rvf="' + ri + '" placeholder="P?"></td><td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
+    h += '<td><input class="num" type="text" value="' + esc(rv.fin) + '" data-rvf="' + ri + '" placeholder="P?"></td>' + (multi ? '<td class="mono">' + (cpos[teamKey(rv.name)] ? "C" + cpos[teamKey(rv.name)] : "") + '</td>' : "") + '<td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
   });
   h += '</tbody></table></div>';
   h += posChart(r);
@@ -1433,20 +1453,31 @@ function paneSeries(){
     + '<div class="field"><label>Fastest lap bonus</label><input type="number" min="0" step="0.5" value="' + esc(cfg.fl) + '" data-ser="fl"></div>'
     + '<div class="field"><label>Pole bonus</label><input type="number" min="0" step="0.5" value="' + esc(cfg.pole) + '" data-ser="pole"></div>'
     + '<div class="field"><label>Drop worst results</label><input type="number" min="0" step="1" value="' + esc(cfg.drop) + '" data-ser="drop"></div>'
+    + '<div class="field"><label>Scoring</label><select data-ser="mode"><option value="overall"' + (cfg.mode !== "class" ? " selected" : "") + '>Overall classification</option><option value="class"' + (cfg.mode === "class" ? " selected" : "") + '>By class (multi-class)</option></select></div>'
     + '</div>';
-  if (st.rows.length){
-    h += '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Team</th>';
-    st.races.forEach(function(x){ h += '<th class="mono" title="' + esc(x.r.meta.event) + '">' + esc(x.r.meta.round ? "R" + String(x.r.meta.round).replace(/^r/i, "") : (x.r.meta.event || x.id).slice(0, 10)) + '</th>'; });
-    h += '<th>Adj</th><th>Total</th><th>Gap</th></tr></thead><tbody>';
-    st.rows.forEach(function(row, i){
-      h += '<tr' + (row.us ? ' style="background:rgba(244,157,112,.07)"' : "") + '><td class="mono">' + (i+1) + '</td><td>' + (row.us ? '<span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(row.name) + '</span>' : esc(row.name)) + '</td>';
+  function table(rows, label){
+    var t = (label != null ? '<h3 style="margin:14px 0 4px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-soft)">' + esc(label) + '</h3>' : "") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Team</th>' + (st.byClass ? "" : '<th>Class</th>');
+    st.races.forEach(function(x){ t += '<th class="mono" title="' + esc(x.r.meta.event) + '">' + esc(x.r.meta.round ? "R" + String(x.r.meta.round).replace(/^r/i, "") : (x.r.meta.event || x.id).slice(0, 10)) + '</th>'; });
+    t += '<th>Adj</th><th>Total</th><th>Gap</th></tr></thead><tbody>';
+    rows.forEach(function(row, i){
+      t += '<tr' + (row.us ? ' style="background:rgba(244,157,112,.07)"' : "") + '><td class="mono">' + (i+1) + '</td><td>' + (row.us ? '<span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(row.name) + '</span>' : esc(row.name)) + '</td>' + (st.byClass ? "" : '<td>' + esc(row.cls) + '</td>');
       row.scores.forEach(function(v, k){
         var why = (row.why[st.races[k].id] || []).join(" + ");
-        h += '<td class="mono"' + (row.dropped.indexOf(k) >= 0 ? ' style="text-decoration:line-through;opacity:.5" title="dropped"' : (why ? ' title="' + esc(why) + '"' : "")) + '>' + v + '</td>';
+        t += '<td class="mono"' + (row.dropped.indexOf(k) >= 0 ? ' style="text-decoration:line-through;opacity:.5" title="dropped"' : (why ? ' title="' + esc(why) + '"' : "")) + '>' + v + '</td>';
       });
-      h += '<td class="mono">' + (row.adj ? (row.adj > 0 ? "+" : "") + row.adj : "") + '</td><td class="mono best">' + row.total + '</td><td class="mono">' + (i ? "−" + (st.rows[0].total - row.total) : "") + '</td></tr>';
+      t += '<td class="mono">' + (row.adj ? (row.adj > 0 ? "+" : "") + row.adj : "") + '</td><td class="mono best">' + row.total + '</td><td class="mono">' + (i ? "−" + (rows[0].total - row.total) : "") + '</td></tr>';
     });
-    h += '</tbody></table></div><p class="hint">Points come from each round’s finishing positions (Race → Result for you, Rivals → Finish for everyone else), plus fastest-lap and pole bonuses where set. Hover a cell for the breakdown. Team names must match across rounds.</p>';
+    return t + '</tbody></table></div>';
+  }
+  if (st.rows.length){
+    if (st.byClass){
+      var groups = {}; st.rows.forEach(function(row){ (groups[teamKey(row.cls)] = groups[teamKey(row.cls)] || {label:row.cls || "No class", rows:[]}).rows.push(row); });
+      Object.keys(groups).sort().forEach(function(k){ h += table(groups[k].rows, "Class · " + groups[k].label); });
+      h += '<p class="hint">By-class scoring: each entry is ranked among the entries sharing its class at that round, and points follow that class rank. Hover a cell for the class rank and overall finish. Set classes in Setup → Event (yours) and the Rivals tab (theirs).</p>';
+    } else {
+      h += table(st.rows, null);
+      h += '<p class="hint">Points come from each round’s overall finishing positions (Race → Result for you, Rivals → Finish for everyone else), plus fastest-lap and pole bonuses where set. Hover a cell for the breakdown. Team names must match across rounds. Switch Scoring to “By class” for a multi-class series.</p>';
+    }
   } else h += '<p class="hint">No points yet — enter finishing positions for the rounds in this series.</p>';
 
   h += h2("Adjustments &amp; rounds outside the app") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
@@ -1564,9 +1595,9 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-sf"))) { r.stints[+a].fuel = t.value; save(); }
   else if ((a = t.getAttribute("data-st"))) { r.stints[+a].tyres = t.value; save(); }
   else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; save(); }
-  else if ((a = t.getAttribute("data-rvf"))) { r.rivals[+a].fin = t.value; save(); }
+  else if ((a = t.getAttribute("data-rvf"))) { r.rivals[+a].fin = t.value; render(); }
   else if ((a = t.getAttribute("data-feed"))) { r.feed[a] = a === "every" ? Math.max(3, +t.value || 10) : a === "autoAdd" ? t.value === "1" : t.value; if (a === "url") r.feed.lapsSeen = null; render(); }
-  else if ((a = t.getAttribute("data-ser"))) { var cfg = seriesCfg(serName); cfg[a] = a === "scheme" ? t.value : (t.value === "" ? 0 : +t.value); render(); }
+  else if ((a = t.getAttribute("data-ser"))) { var cfg = seriesCfg(serName); cfg[a] = (a === "scheme" || a === "mode") ? t.value : (t.value === "" ? 0 : +t.value); render(); }
   else if ((a = t.getAttribute("data-adjt"))) { seriesCfg(serName).adj[+a].team = t.value; render(); }
   else if ((a = t.getAttribute("data-adjp"))) { seriesCfg(serName).adj[+a].pts = +t.value || 0; render(); }
   else if ((a = t.getAttribute("data-adjn"))) { seriesCfg(serName).adj[+a].note = t.value; save(); }
@@ -1574,7 +1605,7 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-op"))) { r.ourPos[+a] = t.value; render(); }
   else if ((a = t.getAttribute("data-rvn"))) { r.rivals[+a].name = t.value; render(); }
   else if ((a = t.getAttribute("data-rvno"))) { r.rivals[+a].no = t.value; save(); }
-  else if ((a = t.getAttribute("data-rvc"))) { r.rivals[+a].cls = t.value; save(); }
+  else if ((a = t.getAttribute("data-rvc"))) { r.rivals[+a].cls = t.value; render(); }
   else if ((a = t.getAttribute("data-rp"))) { var pr = a.split(":"); r.rivals[+pr[0]].pos[+pr[1]] = t.value; render(); }
   else if (t.id === "swStint") { sw.stint = +t.value; }
   else if (t.id === "cdStint") { cd.stint = +t.value; cd.running = false; render(); }
