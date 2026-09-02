@@ -113,6 +113,10 @@
     border:1px solid var(--line);border-radius:16px;padding:0 14px 14px;margin:0;min-width:0;
     box-shadow:0 22px 60px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06)}
   .card.wide{grid-column:1/-1}
+  .zone{grid-column:1/-1;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 -4px 6px}
+  .zone:first-child{margin-top:0}
+  .rail-zone{display:block;height:1px;margin:4px 8px;background:rgba(255,255,255,.12)}
+  .card h3.sub{font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 6px}
   .card h2{display:flex;align-items:center;gap:9px;margin:0 -14px 12px !important;padding:8px 14px;border:0;border-bottom:1px solid var(--line);
     background:rgba(255,255,255,.045);border-radius:16px 16px 0 0;cursor:pointer;user-select:none;
     font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:-.005em;text-transform:none;color:#fff}
@@ -569,7 +573,7 @@ var serName = "";                                        // series shown in the 
 var cd = { running:false, endAt:0, stint:0 };           // countdown
 /* four phases of a race weekend; the rail inside each page lists its windows */
 var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
-var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneTiming","paneRivals"], review:["paneAnalysis","paneSeries"] };
+var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneRivals","paneTiming"], review:["paneAnalysis","paneSeries"] };
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -599,7 +603,7 @@ function h2(t, first){ return '<h2' + (first ? "" : ' style="margin-top:22px"') 
 /* ---------- SETUP ---------- */
 function paneSetup(){
   var r = cur(), m = r.meta, tm = isTime(r);
-  var h = h2("Event", true) + '<div class="grid2">'
+  var h = '<div class="zone">Event &amp; rules</div>' + h2("Event", true) + '<div class="grid2">'
     + fld("Event name","event",m.event,"text","e.g. 3H Endurance")
     + fld("Series / championship","series",m.series,"text","")
     + fld("Round","round",m.round,"text","e.g. 4 of 8")
@@ -626,7 +630,7 @@ function paneSetup(){
     + numf("Minimum weight / ballast (kg)","minWeight",m.minWeight,"")
     + '</div><p class="hint" style="margin-top:8px">Fixed stints: rotation every N ' + unitLbl(r) + '. Free strategy: you build the stint list yourself and the calculator checks fuel, tyres, and drive-time limits. No stops: one stint, whole race.</p>';
 
-  h += h2(vehLabel(r)) + '<div class="grid2">'
+  h += '<div class="zone">Machine &amp; track</div>' + h2(vehLabel(r)) + '<div class="grid2">'
     + self("Discipline","discipline",m.discipline,DISC)
     + fld("Make / model","vehicle",m.vehicle,"text","e.g. Sodi RT10, Porsche 992 Cup")
     + numf("Fuel capacity (L)","fuelCap",m.fuelCap,"", "0.1")
@@ -645,7 +649,7 @@ function paneSetup(){
     + numf("Timing sectors","sectors",m.sectors,"3")
     + '</div><div class="field" style="margin-top:12px"><label>Track notes — overtaking spots, pit entry, kerbs, hazards</label><textarea data-meta="trackNotes">' + esc(m.trackNotes) + '</textarea></div>';
 
-  h += h2("Conditions") + '<div class="grid2">'
+  h += '<div class="zone">Conditions &amp; crew</div>' + h2("Conditions") + '<div class="grid2">'
     + fld("Forecast / weather","weather",m.weather,"text","e.g. clear, 20% rain after 8pm")
     + numf("Air temp","air",m.air,"", "0.1") + numf("Track temp","trackTemp",m.trackTemp,"", "0.1") + self("Temp unit","tempUnit",m.tempUnit,TEMP_UNITS)
     + self("Surface","surface",m.surface,SURFACES)
@@ -670,7 +674,7 @@ function paneSetup(){
     h += '<p class="hint" style="margin-top:8px">Minimum weight ' + esc(m.minWeight) + ' kg' + (under.length ? ' — ballast needed for ' + under.map(function(d){ return esc(first(d.name)) + " (+" + (+m.minWeight - +d.weight).toFixed(1) + " kg)"; }).join(", ") : ' — enter driver weights to see ballast needs') + '.</p>';
   }
 
-  h += h2("Checklist") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
+  h += '<div class="zone">Admin</div>' + h2("Checklist") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
   if (r.checklist.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th></th><th>Item</th><th>Due</th><th></th></tr></thead><tbody>';
     r.checklist.slice().sort(function(a, b){ return (a.done - b.done) || String(a.due).localeCompare(String(b.due)); }).forEach(function(c){
@@ -703,7 +707,7 @@ function driveStats(r){
 }
 function paneStrategy(){
   var r = cur(), m = r.meta, n = r.plan.length, tm = isTime(r), u = unitLbl(r);
-  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. '
+  var h = '<div class="zone">Strategy</div>' + '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. '
     + (m.stintMode === "free" ? 'Set each stint’s length in ' + u + ' below the cells and add or remove stints to match your stop count. ' : m.stintMode === "none" ? 'No pit stops: one stint covers the whole race. ' : 'Fixed rotation every ' + fmtUnits(r, m.stintMin) + '. ')
     + 'Push the plan into the Race tab with one tap — the Race tab records what actually happened, this stays the plan.</p>';
   h += '<div class="plan-row">';
@@ -801,7 +805,7 @@ function buildPlan(r, stops){
 function paneSessions(){
   var r = cur();
   var ns = nSect(r);
-  var h = '<h2>Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>' + (ns ? ', or ' + ns + ' sector splits like <span class="mono">18.2 20.1 13.0</span> (the lap is their sum)' : '') + '; the best lap is picked automatically and feeds the Analysis tab.</p>';
+  var h = '<div class="zone">Track time</div>' + '<h2 class="w">Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>' + (ns ? ', or ' + ns + ' sector splits like <span class="mono">18.2 20.1 13.0</span> (the lap is their sum)' : '') + '; the best lap is picked automatically and feeds the Analysis tab.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="sessType">' + SESSION_TYPES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="sessName" placeholder="session name (optional)" style="max-width:200px"><button class="mini" id="sessAdd">+ Add session</button>'
     + '<div class="field" style="max-width:160px;margin-left:auto"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.meta.grid) + '" data-meta="grid" placeholder="e.g. P4"></div></div>';
@@ -838,7 +842,7 @@ function paneSessions(){
 /* ---------- RACE ---------- */
 function paneRace(){
   var r = cur(), m = r.meta, tm = isTime(r), showPit = m.stintMode !== "none", showFuel = m.discipline !== "kart";
-  var h = '<h2>Stints</h2>';
+  var h = '<div class="zone">Live</div>' + '<h2>Stints</h2>';
   /* timers */
   h += '<div class="tools-row">';
   if (cd.stint >= r.plan.length) cd.stint = 0;
@@ -903,7 +907,7 @@ function paneRace(){
   h += '</tbody></table></div>';
 
   /* race log */
-  h += h2("Race log") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
+  h += '<div class="zone">Log &amp; result</div>' + h2("Race log") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
   if (r.log.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Flag</th><th>Note</th><th></th></tr></thead><tbody>';
@@ -1051,7 +1055,7 @@ function feedStart(){
 function feedStop(){ if (feedState.timer){ clearInterval(feedState.timer); feedState.timer = null; } }
 function paneTiming(){
   var r = cur(), f = r.feed, live = !!feedState.timer && feedState.raceId === store.currentId;
-  var h = '<h2>Live feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
+  var h = '<div class="zone">Data in</div>' + '<h2>Live feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
   h += '<div class="grid2" style="margin-top:12px">'
     + '<div class="field" style="grid-column:1/-1"><label>Feed URL</label><input type="url" value="' + esc(f.url) + '" data-feed="url" placeholder="https://…/live.json or …/classification.csv"></div>'
     + '<div class="field"><label>Poll every (s)</label><input type="number" min="3" value="' + esc(f.every) + '" data-feed="every"></div>'
@@ -1065,7 +1069,7 @@ function paneTiming(){
     + '</div>' + (feedState.err ? '<div class="plan-warn">' + esc(feedState.err) + '</div>' : "");
   h += '<div class="callout">Accepted shapes: JSON <span class="mono">{"entries":[{"pos":1,"no":"12","name":"Apex","laps":42,"last":"51.234","best":"50.981","gap":""}]}</span> (or a bare array), and CSV / TSV with a header row using any of pos · no/kart/car · name/team · laps · last · best · gap · int. Column names are matched loosely. The server must allow cross-site reads; most public live-timing pages don’t, which is what the paste box below is for.</div>';
 
-  h += h2("Paste timing") + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
+  h += '<h2 class="n" style="margin-top:22px">Paste timing</h2>' + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
     + '<textarea id="pasteBox" placeholder="POS  NO  TEAM            LAPS  LAST     BEST     GAP\n1    12  Apex Assassins  42    51.234   50.981\n2    7   ' + esc(r.meta.name || "Us") + '        42    51.410   51.002   +3.2" style="min-height:120px;font-family:var(--mono);font-size:12px"></textarea>'
     + '<div class="btn-row" style="margin-top:8px"><button class="mini" id="pastePreview">Preview</button><button class="primary mini" id="pasteApply">Apply to race</button></div>';
 
@@ -1155,7 +1159,7 @@ function arcPath(r, a0, a1){
 }
 function paneMap(){
   var r = cur(), n = r.plan.length, rs = raceState(r), total = planTotal(r) || 1;
-  var h = '<h2>Map</h2><div class="cmv">';
+  var h = '<h2 class="w">Map</h2><div class="cmv">';
   var pos = latestPositions(r);
   h += '<div class="cmv-tower">';
   if (pos.length){
@@ -1198,7 +1202,7 @@ function paneMap(){
   s += '</svg>';
   h += s + '</div>';
 
-  h += '<h2>Pit window</h2><div class="chart-wrap">';
+  h += '<h3 class="sub">Pit window</h3><div class="chart-wrap">';
   var W = 720, HH = 110, L = 30, Rm = 14;
   var xs = function(u){ return L + (u/total) * (W - L - Rm); };
   var pw = '<svg viewBox="0 0 ' + W + ' ' + HH + '" role="img" aria-label="Rotation timeline">';
@@ -1221,7 +1225,7 @@ function paneMap(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.plan.length;
-  var h = '<h2>Rivals</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
+  var h = '<div class="zone">Competition</div>' + '<h2 class="w">Rivals</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
@@ -1277,7 +1281,7 @@ function posChart(r){
 /* ---------- ANALYSIS ---------- */
 function paneAnalysis(){
   var r = cur(), laps = allLaps(r), m = r.meta;
-  var h = '<h2>Analysis</h2>';
+  var h = '<div class="zone">Pace</div>' + '<h2 class="w">Analysis</h2>';
   /* sessions comparison always available */
   var sessBlock = "";
   var anySess = r.sessions.some(function(s){ return Object.keys(s.times).some(function(d){ return s.times[d].length; }); });
@@ -1408,10 +1412,10 @@ function lapChart(r, laps, best){
 /* ---------- SERIES (championship points) ---------- */
 function paneSeries(){
   var names = seriesNames();
-  if (!names.length) return '<h2>Standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
+  if (!names.length) return '<div class="zone">Championship</div>' + '<h2>Standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
   if (names.indexOf(serName) < 0) serName = (names.indexOf(String(cur().meta.series || "").trim()) >= 0 ? String(cur().meta.series).trim() : names[0]);
   var cfg = seriesCfg(serName), st = standings(serName);
-  var h = '<h2>Standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
+  var h = '<div class="zone">Championship</div>' + '<h2 class="w">Standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
     + '<span class="pill">' + st.races.length + ' round' + (st.races.length === 1 ? "" : "s") + ' in the app</span></div>';
   h += '<div class="grid2">'
     + '<div class="field"><label>Points by finishing position (1st, 2nd, …)</label><input type="text" class="mono" value="' + esc(cfg.scheme) + '" data-ser="scheme" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></div>'
@@ -1464,12 +1468,16 @@ function cardify(html){
   var tmp = document.createElement("div"); tmp.innerHTML = html;
   var out = document.createElement("div"), card = null;
   Array.prototype.slice.call(tmp.childNodes).forEach(function(k){
+    if (k.nodeType === 1 && k.classList.contains("zone")){ out.appendChild(k); card = null; return; }   /* zone labels sit between windows */
     if (k.nodeType === 1 && k.tagName === "H2" || !card){ card = document.createElement("div"); card.className = "card"; out.appendChild(card); }
     card.appendChild(k);
   });
-  /* charts, the map, timer rows, stint planners, and wide tables take the full width; forms and short tables tile */
-  Array.prototype.forEach.call(out.children, function(c, i){
-    var wide = c.querySelector(".chart-wrap,.cmv,.tools-row,.plan-row,#pasteBox,.tiles") || Array.prototype.some.call(c.querySelectorAll("table"), function(t){ return t.querySelectorAll("thead th").length >= 7; });
+  /* h2.w forces full width, h2.n forces a half window; otherwise charts, the map, timer rows, planners, tiles, and wide tables span */
+  Array.prototype.forEach.call(out.querySelectorAll(".card"), function(c, i){
+    var h = c.querySelector("h2"), wide;
+    if (h && h.classList.contains("n")) wide = false;
+    else if (h && h.classList.contains("w")) wide = true;
+    else wide = !!c.querySelector(".chart-wrap,.cmv,.tools-row,.plan-row,.tiles") || Array.prototype.some.call(c.querySelectorAll("table"), function(t){ return t.querySelectorAll("thead th").length >= 7; });
     if (wide) c.classList.add("wide");
     c.id = "win" + i;
   });
@@ -1485,10 +1493,11 @@ function render(){
   if (!PHASES[tab] && !home) tab = "setup";
   if (!home) pane.innerHTML = cardify(PHASES[tab].map(function(fn){ return window[fn](); }).join(""));
   if (!home){
-    document.getElementById("rail").innerHTML = Array.prototype.map.call(pane.querySelectorAll(".card > h2"), function(h){
+    document.getElementById("rail").innerHTML = Array.prototype.map.call(pane.querySelectorAll(".zone, .card > h2"), function(h){
+      if (h.classList.contains("zone")) return '<span class="rail-zone" title="' + esc(h.textContent) + '"></span>';
       var t = h.textContent.replace(/\s+/g, " ").trim(), w = t.split(" "), ab = (w.length > 1 && w[1].length > 1 ? w[0][0] + w[1][0] : t.slice(0, 2)).toUpperCase();
       return '<button data-win="' + h.parentNode.id + '" title="' + esc(t) + '">' + esc(ab) + '<small>' + esc(t.replace(/\s*[·—-].*$/, "").replace(/&amp;/g, "&")) + '</small></button>';
-    }).join("");
+    }).join("").replace(/^<span class="rail-zone"[^>]*><\/span>/, "");
   }
   if (home) bgStart(HOME_CLIP); else bgStop();
   save();
