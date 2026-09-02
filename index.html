@@ -1456,7 +1456,7 @@ function paneSeries(){
     + '<div class="field"><label>Scoring</label><select data-ser="mode"><option value="overall"' + (cfg.mode !== "class" ? " selected" : "") + '>Overall classification</option><option value="class"' + (cfg.mode === "class" ? " selected" : "") + '>By class (multi-class)</option></select></div>'
     + '</div>';
   function table(rows, label){
-    var t = (label != null ? '<h3 style="margin:14px 0 4px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-soft)">' + esc(label) + '</h3>' : "") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Team</th>' + (st.byClass ? "" : '<th>Class</th>');
+    var t = (label != null ? '<h3 style="margin-top:14px;margin-bottom:4px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-soft)">' + esc(label) + '</h3>' : "") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Team</th>' + (st.byClass ? "" : '<th>Class</th>');
     st.races.forEach(function(x){ t += '<th class="mono" title="' + esc(x.r.meta.event) + '">' + esc(x.r.meta.round ? "R" + String(x.r.meta.round).replace(/^r/i, "") : (x.r.meta.event || x.id).slice(0, 10)) + '</th>'; });
     t += '<th>Adj</th><th>Total</th><th>Gap</th></tr></thead><tbody>';
     rows.forEach(function(row, i){
