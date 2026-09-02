@@ -274,7 +274,6 @@
 
 <footer id="appFoot">
   <div>Data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
-  <div id="footLink"></div>
 </footer>
 
 </div>
@@ -611,8 +610,6 @@ function renderHeader(){
     var r = store.races[id];
     return '<option value="' + id + '"' + (id === store.currentId ? " selected" : "") + '>' + esc(r.meta.event || r.meta.name || id) + '</option>';
   }).join("");
-  var fl = document.getElementById("footLink"), link = cur().meta.link;
-  fl.innerHTML = link ? '<a href="' + esc(link) + '">race briefing &rarr;</a>' : "";
 }
 function renderTabs(){
   document.getElementById("tabs").innerHTML = TABS.map(function(t){
