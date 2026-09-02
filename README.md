@@ -14,6 +14,10 @@ Self-contained app, no build step, no backend. Data is kept in `localStorage`
 with JSON **Export/Import** to move it between phones. Older saves are migrated
 in place.
 
+- **Four phases**: Setup, Plan (strategy and sessions), Race (stints and
+  timers, map, live timing, rivals), Review (analysis and series). A rail on
+  the left of each page lists its windows and jumps to them; a window's title
+  bar rolls it up.
 - **Multi-race**: create races from templates (kart endurance, car endurance,
   sprint, motorcycle sprint, sim endurance, heats, blank), switch, delete.
 - **Setup**: event, series, round, team, entry number, class, date, green flag;

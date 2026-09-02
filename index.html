@@ -100,9 +100,9 @@
   #rail{position:sticky;top:12px;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:14px;
     background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
     box-shadow:0 12px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06)}
-  #rail button{width:54px;height:46px;padding:0;border-radius:10px;border:0;box-shadow:none;background:transparent;color:var(--ink-dim);
+  #rail button{width:54px;min-height:46px;padding:5px 0;padding:0;border-radius:10px;border:0;box-shadow:none;background:transparent;color:var(--ink-dim);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
-  #rail button small{font-size:8px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint);max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #rail button small{font-size:8px;line-height:1.15;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint);max-width:52px;max-height:2.3em;overflow:hidden;text-align:center;white-space:normal}
   #rail button:hover{background:rgba(255,255,255,.08);color:#fff}
   #rail button.on{background:rgba(255,255,255,.14);color:#fff}
   #rail button.on small{color:var(--accent)}
@@ -567,7 +567,9 @@ var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0, splits:[] };  // stopwatch
 var serName = "";                                        // series shown in the Series tab
 var cd = { running:false, endAt:0, stint:0 };           // countdown
-var TABS = [["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["timing","Timing"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"],["series","Series"]];
+/* four phases of a race weekend; the rail inside each page lists its windows */
+var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
+var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneTiming","paneRivals"], review:["paneAnalysis","paneSeries"] };
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -610,7 +612,7 @@ function paneSetup(){
     + '</div>'
     + '<div class="field" style="margin-top:12px"><label>Event notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>';
 
-  h += h2("Format &amp; rules") + '<div class="grid2">'
+  h += h2("Format") + '<div class="grid2">'
     + self("Race type","raceType",m.raceType,RACE_TYPES)
     + self("Race length basis","lenBasis",m.lenBasis,LEN_BASIS)
     + (tm ? numf("Race duration (min)","duration",m.duration,"180") : numf("Race laps","raceLaps",m.raceLaps,"20"))
@@ -668,7 +670,7 @@ function paneSetup(){
     h += '<p class="hint" style="margin-top:8px">Minimum weight ' + esc(m.minWeight) + ' kg' + (under.length ? ' — ballast needed for ' + under.map(function(d){ return esc(first(d.name)) + " (+" + (+m.minWeight - +d.weight).toFixed(1) + " kg)"; }).join(", ") : ' — enter driver weights to see ballast needs') + '.</p>';
   }
 
-  h += h2("Checklist &amp; deadlines") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
+  h += h2("Checklist") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
   if (r.checklist.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th></th><th>Item</th><th>Due</th><th></th></tr></thead><tbody>';
     r.checklist.slice().sort(function(a, b){ return (a.done - b.done) || String(a.due).localeCompare(String(b.due)); }).forEach(function(c){
@@ -681,7 +683,7 @@ function paneSetup(){
     h += '</tbody></table></div>';
   } else h += '<p class="hint">Entry payment, driver registration, scrutineering, briefing times, ballast pickup — anything with a deadline goes here.</p>';
 
-  h += h2("Races &amp; data") + '<div class="btn-row"><select id="newTpl">' + TEMPLATES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
+  h += h2("Races") + '<div class="btn-row"><select id="newTpl">' + TEMPLATES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
     + '<button class="mini" id="newRace">+ New race</button><button class="mini ghost" id="exportBtn">Export</button><button class="mini ghost" id="importBtn">Import</button></div>';
   h += '<div class="callout">Data lives in this browser only. Before race day, <b>Export</b> a backup and <b>Import</b> it on the second phone — then export again after the race to merge notes.</div>';
   h += '<div style="margin-top:18px;border-top:1px dashed var(--line);padding-top:14px"><button class="danger mini" id="delRace">Delete this race</button></div>';
@@ -769,7 +771,7 @@ function paneStrategy(){
 function fuelRange(r){ var m = r.meta; return (+m.fuelCap && +m.fuelPerLap) ? Math.floor(+m.fuelCap / +m.fuelPerLap) : 0; }
 function stopsCalc(r){
   var m = r.meta, tm = isTime(r), lapMs = lapEstMs(r), laps = raceLapsEst(r), fr = fuelRange(r);
-  var h = h2("Stop calculator") + '<div class="tiles">';
+  var h = h2("Stops") + '<div class="tiles">';
   h += tile("Race laps", laps ? "~" + laps : "—", tm ? (lapMs ? "at " + fmtLap(lapMs) + " avg" : "set a target lap") : "lap-count race");
   h += tile("Fuel range", fr ? fr + " laps" : "—", fr ? (+m.fuelCap) + " L ÷ " + (+m.fuelPerLap) + " L/lap" : "enter capacity + burn");
   h += tile("Tyre life", +m.tyreLife ? m.tyreLife + " laps" : "—", +m.tyreSets ? m.tyreSets + " sets" : "per set");
@@ -836,7 +838,7 @@ function paneSessions(){
 /* ---------- RACE ---------- */
 function paneRace(){
   var r = cur(), m = r.meta, tm = isTime(r), showPit = m.stintMode !== "none", showFuel = m.discipline !== "kart";
-  var h = '<h2>Race</h2>';
+  var h = '<h2>Stints</h2>';
   /* timers */
   h += '<div class="tools-row">';
   if (cd.stint >= r.plan.length) cd.stint = 0;
@@ -1037,7 +1039,7 @@ function feedPoll(){
       var rows = parseFeed(txt);
       feedState.rows = rows; feedState.at = nowClock(); feedState.err = rows.length ? "" : "Fetched, but no timing rows recognised.";
       feedState.applied = applyFeed(r, rows); save();
-      if (tab === "timing" || tab === "map" || tab === "rivals") render();
+      if (tab === "race" && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "")) render();
     })
     .catch(function(e){ feedState.err = String(e.message || e) + " — if the URL opens in a browser tab, the server is blocking cross-site reads (CORS); use the paste box instead."; if (tab === "timing") render(); });
 }
@@ -1049,7 +1051,7 @@ function feedStart(){
 function feedStop(){ if (feedState.timer){ clearInterval(feedState.timer); feedState.timer = null; } }
 function paneTiming(){
   var r = cur(), f = r.feed, live = !!feedState.timer && feedState.raceId === store.currentId;
-  var h = '<h2>Live timing feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
+  var h = '<h2>Live feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
   h += '<div class="grid2" style="margin-top:12px">'
     + '<div class="field" style="grid-column:1/-1"><label>Feed URL</label><input type="url" value="' + esc(f.url) + '" data-feed="url" placeholder="https://…/live.json or …/classification.csv"></div>'
     + '<div class="field"><label>Poll every (s)</label><input type="number" min="3" value="' + esc(f.every) + '" data-feed="every"></div>'
@@ -1063,12 +1065,12 @@ function paneTiming(){
     + '</div>' + (feedState.err ? '<div class="plan-warn">' + esc(feedState.err) + '</div>' : "");
   h += '<div class="callout">Accepted shapes: JSON <span class="mono">{"entries":[{"pos":1,"no":"12","name":"Apex","laps":42,"last":"51.234","best":"50.981","gap":""}]}</span> (or a bare array), and CSV / TSV with a header row using any of pos · no/kart/car · name/team · laps · last · best · gap · int. Column names are matched loosely. The server must allow cross-site reads; most public live-timing pages don’t, which is what the paste box below is for.</div>';
 
-  h += h2("Paste a timing screen") + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
+  h += h2("Paste timing") + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
     + '<textarea id="pasteBox" placeholder="POS  NO  TEAM            LAPS  LAST     BEST     GAP\n1    12  Apex Assassins  42    51.234   50.981\n2    7   ' + esc(r.meta.name || "Us") + '        42    51.410   51.002   +3.2" style="min-height:120px;font-family:var(--mono);font-size:12px"></textarea>'
     + '<div class="btn-row" style="margin-top:8px"><button class="mini" id="pastePreview">Preview</button><button class="primary mini" id="pasteApply">Apply to race</button></div>';
 
   if (feedState.rows.length){
-    h += h2("Parsed timing · " + feedState.rows.length + " entries") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>#</th><th>Entry</th><th>Laps</th><th>Last</th><th>Best</th><th>Gap</th><th>Int</th><th>Match</th></tr></thead><tbody>';
+    h += h2("Timing · " + feedState.rows.length + " entries") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>#</th><th>Entry</th><th>Laps</th><th>Last</th><th>Best</th><th>Gap</th><th>Int</th><th>Match</th></tr></thead><tbody>';
     feedState.rows.forEach(function(row){
       var us = isUsRow(r, row), rv = !us && r.rivals.find(function(x){ return (x.no && row.no && String(x.no) === String(row.no)) || (teamKey(x.name) && teamKey(x.name) === teamKey(row.name)); });
       h += '<tr' + (us ? ' style="background:rgba(52,227,111,.08)"' : "") + '><td class="mono">' + (row.pos != null ? row.pos : "") + '</td><td class="mono">' + esc(row.no) + '</td><td>' + esc(row.name) + '</td><td class="mono">' + (row.laps != null ? row.laps : "") + '</td><td class="mono">' + esc(row.last) + '</td><td class="mono best">' + esc(row.best) + '</td><td class="mono">' + esc(row.gap) + '</td><td class="mono">' + esc(row.int) + '</td>'
@@ -1077,7 +1079,7 @@ function paneTiming(){
     h += '</tbody></table></div>';
   }
 
-  h += h2("Import a lap file") + '<p class="hint">Timing exports (Speedhive / MYLAPS, Apex, RaceChrono, or any CSV): one lap per row with a lap-time column and optional sector columns. Lines that are just a lap time work too. Choose where the laps go.</p>'
+  h += h2("Lap import") + '<p class="hint">Timing exports (Speedhive / MYLAPS, Apex, RaceChrono, or any CSV): one lap per row with a lap-time column and optional sector columns. Lines that are just a lap time work too. Choose where the laps go.</p>'
     + '<div class="btn-row" style="margin-top:8px"><select id="lapTarget">'
     + r.stints.map(function(s, i){ return '<option value="stint:' + i + '">Race · S' + (i+1) + (s.d && driverById(r, s.d) ? " · " + esc(first(driverById(r, s.d).name)) : "") + '</option>'; }).join("")
     + r.sessions.map(function(s){ return r.drivers.map(function(d){ return '<option value="sess:' + s.id + ':' + d.id + '">' + esc(s.name || s.type) + ' · ' + esc(first(d.name)) + '</option>'; }).join(""); }).join("")
@@ -1153,7 +1155,7 @@ function arcPath(r, a0, a1){
 }
 function paneMap(){
   var r = cur(), n = r.plan.length, rs = raceState(r), total = planTotal(r) || 1;
-  var h = '<h2>Circle map viewer</h2><div class="cmv">';
+  var h = '<h2>Map</h2><div class="cmv">';
   var pos = latestPositions(r);
   h += '<div class="cmv-tower">';
   if (pos.length){
@@ -1219,7 +1221,7 @@ function paneMap(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.plan.length;
-  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
+  var h = '<h2>Rivals</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
@@ -1280,7 +1282,7 @@ function paneAnalysis(){
   var sessBlock = "";
   var anySess = r.sessions.some(function(s){ return Object.keys(s.times).some(function(d){ return s.times[d].length; }); });
   if (anySess){
-    sessBlock += h2("Sessions — best lap per driver") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>' + r.sessions.map(function(s){ return '<th>' + esc(s.name || s.type) + '</th>'; }).join("") + '<th>Race best</th></tr></thead><tbody>';
+    sessBlock += h2("Session bests") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>' + r.sessions.map(function(s){ return '<th>' + esc(s.name || s.type) + '</th>'; }).join("") + '<th>Race best</th></tr></thead><tbody>';
     r.drivers.forEach(function(d){
       var rb = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
       h += "";
@@ -1406,10 +1408,10 @@ function lapChart(r, laps, best){
 /* ---------- SERIES (championship points) ---------- */
 function paneSeries(){
   var names = seriesNames();
-  if (!names.length) return '<h2>Series standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
+  if (!names.length) return '<h2>Standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
   if (names.indexOf(serName) < 0) serName = (names.indexOf(String(cur().meta.series || "").trim()) >= 0 ? String(cur().meta.series).trim() : names[0]);
   var cfg = seriesCfg(serName), st = standings(serName);
-  var h = '<h2>Series standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
+  var h = '<h2>Standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
     + '<span class="pill">' + st.races.length + ' round' + (st.races.length === 1 ? "" : "s") + ' in the app</span></div>';
   h += '<div class="grid2">'
     + '<div class="field"><label>Points by finishing position (1st, 2nd, …)</label><input type="text" class="mono" value="' + esc(cfg.scheme) + '" data-ser="scheme" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></div>'
@@ -1443,7 +1445,7 @@ function paneSeries(){
     }
   } else h += '<p class="hint">No points yet — enter finishing positions for the rounds in this series.</p>';
 
-  h += h2("Adjustments &amp; rounds outside the app") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
+  h += h2("Adjustments") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
   if ((cfg.adj || []).length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>Points</th><th>Note</th><th></th></tr></thead><tbody>';
     cfg.adj.forEach(function(a, i){
@@ -1455,6 +1457,8 @@ function paneSeries(){
 }
 
 /* ---------- render + events ---------- */
+window.paneSetup = paneSetup; window.paneStrategy = paneStrategy; window.paneSessions = paneSessions; window.paneRace = paneRace;
+window.paneMap = paneMap; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
 /* every <h2> starts a new floating card; anything before the first h2 gets its own */
 function cardify(html){
   var tmp = document.createElement("div"); tmp.innerHTML = html;
@@ -1478,15 +1482,8 @@ function render(){
   document.getElementById("homeHero").hidden = !home;
   document.getElementById("appFoot").hidden = home;
   document.getElementById("deck").hidden = home;
-  if (!home) pane.innerHTML = cardify(tab === "setup" ? paneSetup()
-    : tab === "strategy" ? paneStrategy()
-    : tab === "sessions" ? paneSessions()
-    : tab === "race" ? paneRace()
-    : tab === "timing" ? paneTiming()
-    : tab === "map" ? paneMap()
-    : tab === "rivals" ? paneRivals()
-    : tab === "series" ? paneSeries()
-    : paneAnalysis());
+  if (!PHASES[tab] && !home) tab = "setup";
+  if (!home) pane.innerHTML = cardify(PHASES[tab].map(function(fn){ return window[fn](); }).join(""));
   if (!home){
     document.getElementById("rail").innerHTML = Array.prototype.map.call(pane.querySelectorAll(".card > h2"), function(h){
       var t = h.textContent.replace(/\s+/g, " ").trim(), w = t.split(" "), ab = (w.length > 1 && w[1].length > 1 ? w[0][0] + w[1][0] : t.slice(0, 2)).toUpperCase();
@@ -1569,7 +1566,7 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-sp"))) { r.stints[+a].pit = t.value; save(); }
   else if ((a = t.getAttribute("data-sf"))) { r.stints[+a].fuel = t.value; save(); }
   else if ((a = t.getAttribute("data-st"))) { r.stints[+a].tyres = t.value; save(); }
-  else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; save(); }
+  else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; if (a === "pos") render(); else save(); }
   else if ((a = t.getAttribute("data-rvf"))) { r.rivals[+a].fin = t.value; render(); }
   else if ((a = t.getAttribute("data-feed"))) { r.feed[a] = a === "every" ? Math.max(3, +t.value || 10) : a === "autoAdd" ? t.value === "1" : t.value; if (a === "url") r.feed.lapsSeen = null; render(); }
   else if ((a = t.getAttribute("data-ser"))) { var cfg = seriesCfg(serName); cfg[a] = (a === "scheme" || a === "mode") ? t.value : (t.value === "" ? 0 : +t.value); render(); }
@@ -1738,7 +1735,7 @@ function startCountdown(){
   render();
 }
 setInterval(function(){
-  if (tab === "map"){
+  if (tab === "race"){
     var rM = cur(), rsM = raceState(rM);
     var ckM = document.getElementById("cmvClock");
     if (ckM) ckM.textContent = rsM.live || rsM.done ? fmtHMS(rsM.elapsed) : (rsM.pre != null ? "T-" + fmtHMS(rsM.pre) : "--:--:--");
