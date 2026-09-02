@@ -199,8 +199,7 @@
   #heroStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #heroStage .stage-gif{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   #bgStage{position:fixed;inset:0;z-index:0;pointer-events:none}
-  #bgStage video{pointer-events:none}
-  #bgStage img,#bgStage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  #bgStage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;
     filter:blur(1.6px) saturate(1.04);transform:scale(1.02)}
   #feedMon{position:fixed;right:14px;bottom:36px;z-index:5;width:224px;border-radius:5px;border:1px solid #262c35;
     background:#10141b;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.45)}
@@ -254,7 +253,7 @@
 </style>
 </head>
 <body>
-<div id="bgStage" aria-hidden="true"><video id="bgImg" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback noplaybackrate" onerror="this.style.display='none'"></video></div>
+<div id="bgStage" aria-hidden="true"><canvas id="bgCanvas"></canvas></div>
 <div id="feedMon" hidden><div class="fm-bar"><span class="fm-sq"></span><span id="feedLabel">LIVE</span></div><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
 <div id="statusBar"><span id="sbRace"></span><span id="sbInfo"></span><span class="sb-spacer"></span><span class="sb-live">&#9679; LIVE</span><span id="sbClock" class="mono"></span></div>
 <div class="wrap">
@@ -400,6 +399,35 @@ var GIFS = {
   celebration: ["https://media.giphy.com/media/MFyOkMBGRRuJjJ6flU/giphy.gif",
                 "https://media.giphy.com/media/w9Y7z2qudgYgw/giphy.gif"]
 };
+var bgVid = null, bgRAF = 0, bgCanvas = document.getElementById("bgCanvas");
+function bgSize(){ bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; }
+function bgDraw(){
+  if (bgVid && bgVid.readyState >= 2){
+    var ctx = bgCanvas.getContext("2d"), cw = bgCanvas.width, ch = bgCanvas.height, vw = bgVid.videoWidth, vh = bgVid.videoHeight;
+    if (vw && vh){ var s = Math.max(cw/vw, ch/vh), dw = vw*s, dh = vh*s; ctx.drawImage(bgVid, (cw-dw)/2, (ch-dh)/2, dw, dh); }
+  }
+  bgRAF = requestAnimationFrame(bgDraw);
+}
+function bgStart(url){
+  bgCanvas.style.display = "";
+  if (!bgVid || bgVid.getAttribute("data-src") !== url){
+    if (bgVid){ bgVid.pause(); bgVid.removeAttribute("src"); }
+    bgVid = document.createElement("video");   /* never appended to the DOM */
+    bgVid.muted = true; bgVid.loop = true; bgVid.playsInline = true;
+    bgVid.setAttribute("playsinline", ""); bgVid.setAttribute("data-src", url);
+    bgVid.onerror = function(){ bgCanvas.style.display = "none"; };
+    bgVid.src = url;
+  }
+  bgVid.play().catch(function(){});
+  bgSize();
+  if (!bgRAF) bgRAF = requestAnimationFrame(bgDraw);
+}
+function bgStop(){
+  if (bgVid) bgVid.pause();
+  if (bgRAF){ cancelAnimationFrame(bgRAF); bgRAF = 0; }
+  bgCanvas.style.display = "none";
+}
+window.addEventListener("resize", function(){ if (tab === "home") bgSize(); });
 var GIF_PICK = {};
 Object.keys(GIFS).forEach(function(k){ GIF_PICK[k] = GIFS[k][Math.floor(Math.random() * GIFS[k].length)]; });
 function tgtPill(avgMs){
@@ -841,13 +869,12 @@ function render(){
     : tab === "rivals" ? paneRivals()
     : paneAnalysis();
   var bgKey = {home:"home", setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration"}[tab];
-  var bg = document.getElementById("bgImg"), feed = document.getElementById("feedMon");
+  var feed = document.getElementById("feedMon");
   if (home){
     feed.hidden = true;
-    bg.style.visibility = "";
-    if (GIF_PICK.home && bg.getAttribute("src") !== GIF_PICK.home) bg.src = GIF_PICK.home;
+    if (GIF_PICK.home) bgStart(GIF_PICK.home);
   } else {
-    bg.style.visibility = "hidden";
+    bgStop();
     feed.hidden = false;
     var fi = document.getElementById("feedImg");
     if (GIF_PICK[bgKey] && fi.getAttribute("src") !== GIF_PICK[bgKey]) fi.src = GIF_PICK[bgKey];
