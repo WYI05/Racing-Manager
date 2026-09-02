@@ -93,13 +93,13 @@
   /* Deck: windows tiled across the width */
   #deck{margin:12px 0 26px}
   /* column packing: windows stack under one another so short ones leave no hole; wide windows span every column */
-  section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;columns:440px;column-gap:2px;column-fill:balance}
+  section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;display:grid;grid-template-columns:1fr 1fr;gap:2px;align-items:stretch;
+    grid-auto-rows:minmax(calc(50vh - 44px),auto)}
+  @media (max-width:900px){section.pane{grid-template-columns:1fr;grid-auto-rows:auto}}
   /* Windows: glass panel with a compact title bar; click the bar to roll it up */
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0 0 2px;min-width:0;box-shadow:none;
-    break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
-  .card.wide{column-span:all;-webkit-column-span:all}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0;min-width:0;box-shadow:none}
   .zone{display:none}
-  .card h3.sub{font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 6px}
+  .card h3.sub{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
   .card h2{display:flex;align-items:center;gap:8px;margin:0 -10px 10px !important;padding:4px 10px;border:0;border-bottom:1px solid var(--line);
     background:var(--bar);border-radius:0;min-height:24px;
     font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.01em;text-transform:none;color:#dfe3e8}
@@ -552,7 +552,7 @@ var serName = "";                                        // series shown in the 
 var cd = { running:false, endAt:0, stint:0 };           // countdown
 /* four phases of a race weekend */
 var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
-var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneRaceLog","paneRivals","paneTiming"], review:["paneAnalysis","paneSeries"] };
+var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions","paneSessionBests"], race:["paneRace","paneMap","paneRaceLog","paneRivals"], review:["paneAnalysis","paneSeries"] };
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -582,7 +582,7 @@ function h2(t, first){ return '<h2' + (first ? "" : ' style="margin-top:22px"') 
 /* ---------- SETUP ---------- */
 function paneSetup(){
   var r = cur(), m = r.meta, tm = isTime(r);
-  var h = '<div class="zone">Event &amp; rules</div>' + h2("Event", true) + '<div class="grid2">'
+  var h = h2("Event", true) + '<div class="grid2">'
     + fld("Event name","event",m.event,"text","e.g. 3H Endurance")
     + fld("Series / championship","series",m.series,"text","")
     + fld("Round","round",m.round,"text","e.g. 4 of 8")
@@ -593,7 +593,7 @@ function paneSetup(){
     + fld("Green flag","green",m.green,"time","")
     + fld("Briefing / regs link","link",m.link,"url","https://…")
     + '</div>'
-    + '<div class="field" style="margin-top:12px"><label>Event notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>';
+    + '<div class="field" style="margin-top:12px"><label>Event notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>' + setupAdmin(r);
 
   h += h2("Format") + '<div class="grid2">'
     + self("Race type","raceType",m.raceType,RACE_TYPES)
@@ -609,7 +609,7 @@ function paneSetup(){
     + numf("Minimum weight / ballast (kg)","minWeight",m.minWeight,"")
     + '</div><p class="hint" style="margin-top:8px">Fixed stints: rotation every N ' + unitLbl(r) + '. Free strategy: you build the stint list yourself and the calculator checks fuel, tyres, and drive-time limits. No stops: one stint, whole race.</p>';
 
-  h += '<div class="zone">Machine &amp; track</div>' + h2(vehLabel(r)) + '<div class="grid2">'
+  h += h2(vehLabel(r) + " &amp; track") + '<div class="grid2">'
     + self("Discipline","discipline",m.discipline,DISC)
     + fld("Make / model","vehicle",m.vehicle,"text","e.g. Sodi RT10, Porsche 992 Cup")
     + numf("Fuel capacity (L)","fuelCap",m.fuelCap,"", "0.1")
@@ -618,7 +618,7 @@ function paneSetup(){
     + numf("Tyre sets available","tyreSets",m.tyreSets,"")
     + '</div><div class="field" style="margin-top:12px"><label>' + vehLabel(r) + ' notes — setup, gearing, pressures, quirks</label><textarea data-meta="vehicleNotes">' + esc(m.vehicleNotes) + '</textarea></div>';
 
-  h += h2("Track") + '<div class="grid2">'
+  h += '<h3 class="sub">Track</h3>' + '<div class="grid2">'
     + fld("Track","track",m.track,"text","")
     + fld("Location","location",m.location,"text","City, region")
     + numf("Lap length","trackLen",m.trackLen,"", "0.001") + self("Length unit","lenUnit",m.lenUnit,LEN_UNITS)
@@ -628,7 +628,7 @@ function paneSetup(){
     + numf("Timing sectors","sectors",m.sectors,"3")
     + '</div><div class="field" style="margin-top:12px"><label>Track notes — overtaking spots, pit entry, kerbs, hazards</label><textarea data-meta="trackNotes">' + esc(m.trackNotes) + '</textarea></div>';
 
-  h += '<div class="zone">Conditions &amp; crew</div>' + h2("Conditions") + '<div class="grid2">'
+  h += h2("Conditions &amp; crew") + '<div class="grid2">'
     + fld("Forecast / weather","weather",m.weather,"text","e.g. clear, 20% rain after 8pm")
     + numf("Air temp","air",m.air,"", "0.1") + numf("Track temp","trackTemp",m.trackTemp,"", "0.1") + self("Temp unit","tempUnit",m.tempUnit,TEMP_UNITS)
     + self("Surface","surface",m.surface,SURFACES)
@@ -637,7 +637,7 @@ function paneSetup(){
     + '</div><div class="field" style="margin-top:12px"><label>Conditions notes — grip evolution, wet lines, visibility</label><textarea data-meta="condNotes">' + esc(m.condNotes) + '</textarea></div>'
     + '<p class="hint" style="margin-top:8px">Live changes during the race go in the Race log (WEATHER entries), so this stays the pre-race picture.</p>';
 
-  h += h2("Drivers") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Color</th><th>Weight (kg)</th><th>Licence / grade</th><th>Notes</th><th></th></tr></thead><tbody>';
+  h += '<h3 class="sub">Drivers</h3>' + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Color</th><th>Weight (kg)</th><th>Licence / grade</th><th>Notes</th><th></th></tr></thead><tbody>';
   r.drivers.forEach(function(d){
     h += '<tr><td><input type="text" value="' + esc(d.name) + '" data-drv="' + d.id + '" style="min-width:140px"></td>'
       + '<td><select data-drvc="' + d.id + '">' + PAL.map(function(p, ci){
@@ -653,7 +653,12 @@ function paneSetup(){
     h += '<p class="hint" style="margin-top:8px">Minimum weight ' + esc(m.minWeight) + ' kg' + (under.length ? ' — ballast needed for ' + under.map(function(d){ return esc(first(d.name)) + " (+" + (+m.minWeight - +d.weight).toFixed(1) + " kg)"; }).join(", ") : ' — enter driver weights to see ballast needs') + '.</p>';
   }
 
-  h += '<div class="zone">Admin</div>' + h2("Checklist") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
+  return h;
+}
+
+function setupAdmin(r){
+  var h = "";
+  h += '<h3 class="sub">Checklist</h3>' + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
   if (r.checklist.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th></th><th>Item</th><th>Due</th><th></th></tr></thead><tbody>';
     r.checklist.slice().sort(function(a, b){ return (a.done - b.done) || String(a.due).localeCompare(String(b.due)); }).forEach(function(c){
@@ -666,7 +671,7 @@ function paneSetup(){
     h += '</tbody></table></div>';
   } else h += '<p class="hint">Entry payment, driver registration, scrutineering, briefing times, ballast pickup — anything with a deadline goes here.</p>';
 
-  h += h2("Races") + '<div class="btn-row"><select id="newTpl">' + TEMPLATES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
+  h += '<h3 class="sub">Races &amp; data</h3>' + '<div class="btn-row"><select id="newTpl">' + TEMPLATES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
     + '<button class="mini" id="newRace">+ New race</button><button class="mini ghost" id="exportBtn">Export</button><button class="mini ghost" id="importBtn">Import</button></div>';
   h += '<div class="callout">Data lives in this browser only. Before race day, <b>Export</b> a backup and <b>Import</b> it on the second phone — then export again after the race to merge notes.</div>';
   h += '<div style="margin-top:18px;border-top:1px dashed var(--line);padding-top:14px"><button class="danger mini" id="delRace">Delete this race</button></div>';
@@ -686,7 +691,7 @@ function driveStats(r){
 }
 function paneStrategy(){
   var r = cur(), m = r.meta, n = r.plan.length, tm = isTime(r), u = unitLbl(r);
-  var h = '<div class="zone">Strategy</div>' + '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. '
+  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. '
     + (m.stintMode === "free" ? 'Set each stint’s length in ' + u + ' below the cells and add or remove stints to match your stop count. ' : m.stintMode === "none" ? 'No pit stops: one stint covers the whole race. ' : 'Fixed rotation every ' + fmtUnits(r, m.stintMin) + '. ')
     + 'Push the plan into the Race tab with one tap — the Race tab records what actually happened, this stays the plan.</p>';
   h += '<div class="plan-row">';
@@ -741,20 +746,19 @@ function paneStrategy(){
     + '<button class="primary mini" id="planApply">Apply plan &rarr; Race tab</button></div>';
 
   /* stop calculator */
-  if (m.stintMode === "free") h += stopsCalc(r);
-
   h += h2("Targets") + '<div class="grid2">'
     + fld("Target lap time","targetLap",m.targetLap,"text","e.g. 51.5 or 1:42.3")
     + fld("Target finish","targetPos",m.targetPos,"text","e.g. P3, class win")
     + '</div>'
     + '<p class="hint" style="margin-top:8px">The target lap drives the live &Delta; in the Race tab, the Analysis comparison' + (tm ? ", and the lap estimate for fuel and lap-count maths" : ", and the clock for lap-based stints") + '.</p>'
     + '<div class="field" style="margin-top:12px"><label>Strategy notes — passing plan, signals, pit choreography, weather calls</label><textarea data-meta="stratNotes">' + esc(m.stratNotes) + '</textarea></div>';
+  if (m.stintMode === "free") h += stopsCalc(r);
   return h;
 }
 function fuelRange(r){ var m = r.meta; return (+m.fuelCap && +m.fuelPerLap) ? Math.floor(+m.fuelCap / +m.fuelPerLap) : 0; }
 function stopsCalc(r){
   var m = r.meta, tm = isTime(r), lapMs = lapEstMs(r), laps = raceLapsEst(r), fr = fuelRange(r);
-  var h = h2("Stops") + '<div class="tiles">';
+  var h = '<h3 class="sub">Stop calculator</h3>' + '<div class="tiles">';
   h += tile("Race laps", laps ? "~" + laps : "—", tm ? (lapMs ? "at " + fmtLap(lapMs) + " avg" : "set a target lap") : "lap-count race");
   h += tile("Fuel range", fr ? fr + " laps" : "—", fr ? (+m.fuelCap) + " L ÷ " + (+m.fuelPerLap) + " L/lap" : "enter capacity + burn");
   h += tile("Tyre life", +m.tyreLife ? m.tyreLife + " laps" : "—", +m.tyreSets ? m.tyreSets + " sets" : "per set");
@@ -784,7 +788,7 @@ function buildPlan(r, stops){
 function paneSessions(){
   var r = cur();
   var ns = nSect(r);
-  var h = '<div class="zone">Track time</div>' + '<h2 class="w">Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>' + (ns ? ', or ' + ns + ' sector splits like <span class="mono">18.2 20.1 13.0</span> (the lap is their sum)' : '') + '; the best lap is picked automatically and feeds the Analysis tab.</p>';
+  var h = '<h2>Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>' + (ns ? ', or ' + ns + ' sector splits like <span class="mono">18.2 20.1 13.0</span> (the lap is their sum)' : '') + '; the best lap is picked automatically and feeds the Analysis tab.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="sessType">' + SESSION_TYPES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="sessName" placeholder="session name (optional)" style="max-width:200px"><button class="mini" id="sessAdd">+ Add session</button>'
     + '<div class="field" style="max-width:160px;margin-left:auto"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.meta.grid) + '" data-meta="grid" placeholder="e.g. P4"></div></div>';
@@ -821,7 +825,7 @@ function paneSessions(){
 /* ---------- RACE ---------- */
 function paneRace(){
   var r = cur(), m = r.meta, tm = isTime(r), showPit = m.stintMode !== "none", showFuel = m.discipline !== "kart";
-  var h = '<div class="zone">Live</div>' + '<h2>Stints</h2>';
+  var h = '<h2>Stints</h2>';
   /* timers */
   h += '<div class="tools-row">';
   if (cd.stint >= r.plan.length) cd.stint = 0;
@@ -891,7 +895,7 @@ function paneRace(){
 function paneRaceLog(){
   var r = cur();
   var h = "";
-  h += '<div class="zone">Log &amp; result</div>' + h2("Race log") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
+  h += h2("Log &amp; result") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
   if (r.log.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Flag</th><th>Note</th><th></th></tr></thead><tbody>';
@@ -903,7 +907,7 @@ function paneRaceLog(){
   } else h += '<p class="hint">Timestamped record of flags, safety cars, pit stops, penalties, incidents, and weather changes. Entries get the current clock time.</p>';
 
   /* result */
-  h += h2("Result") + '<div class="grid2">'
+  h += '<h3 class="sub">Result</h3>' + '<div class="grid2">'
     + '<div class="field"><label>Finish position</label><input type="text" class="mono" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="e.g. P2, 1st in class"></div>'
     + '<div class="field"><label>Laps completed</label><input type="text" class="mono" value="' + esc(r.result.laps) + '" data-res="laps" placeholder=""></div>'
     + '<div class="field"><label>Fastest lap (from data)</label><input type="text" class="mono" value="' + (allLaps(r).length ? fmtLap(Math.min.apply(null, allLaps(r).map(function(l){ return l.ms; }))) : "—") + '" disabled></div>'
@@ -1039,7 +1043,7 @@ function feedStart(){
 function feedStop(){ if (feedState.timer){ clearInterval(feedState.timer); feedState.timer = null; } }
 function paneTiming(){
   var r = cur(), f = r.feed, live = !!feedState.timer && feedState.raceId === store.currentId;
-  var h = '<div class="zone">Data in</div>' + '<h2>Live feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
+  var h = '<h3 class="sub">Live feed</h3>' + '<p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
   h += '<div class="grid2" style="margin-top:12px">'
     + '<div class="field" style="grid-column:1/-1"><label>Feed URL</label><input type="url" value="' + esc(f.url) + '" data-feed="url" placeholder="https://…/live.json or …/classification.csv"></div>'
     + '<div class="field"><label>Poll every (s)</label><input type="number" min="3" value="' + esc(f.every) + '" data-feed="every"></div>'
@@ -1053,12 +1057,12 @@ function paneTiming(){
     + '</div>' + (feedState.err ? '<div class="plan-warn">' + esc(feedState.err) + '</div>' : "");
   h += '<div class="callout">Accepted shapes: JSON <span class="mono">{"entries":[{"pos":1,"no":"12","name":"Apex","laps":42,"last":"51.234","best":"50.981","gap":""}]}</span> (or a bare array), and CSV / TSV with a header row using any of pos · no/kart/car · name/team · laps · last · best · gap · int. Column names are matched loosely. The server must allow cross-site reads; most public live-timing pages don’t, which is what the paste box below is for.</div>';
 
-  h += '<h2 class="n" style="margin-top:22px">Paste timing</h2>' + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
+  h += '<h3 class="sub">Paste timing</h3>' + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
     + '<textarea id="pasteBox" placeholder="POS  NO  TEAM            LAPS  LAST     BEST     GAP\n1    12  Apex Assassins  42    51.234   50.981\n2    7   ' + esc(r.meta.name || "Us") + '        42    51.410   51.002   +3.2" style="min-height:120px;font-family:var(--mono);font-size:12px"></textarea>'
     + '<div class="btn-row" style="margin-top:8px"><button class="mini" id="pastePreview">Preview</button><button class="primary mini" id="pasteApply">Apply to race</button></div>';
 
   if (feedState.rows.length){
-    h += h2("Timing · " + feedState.rows.length + " entries") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>#</th><th>Entry</th><th>Laps</th><th>Last</th><th>Best</th><th>Gap</th><th>Int</th><th>Match</th></tr></thead><tbody>';
+    h += '<h3 class="sub">Timing · ' + feedState.rows.length + ' entries</h3>' + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>#</th><th>Entry</th><th>Laps</th><th>Last</th><th>Best</th><th>Gap</th><th>Int</th><th>Match</th></tr></thead><tbody>';
     feedState.rows.forEach(function(row){
       var us = isUsRow(r, row), rv = !us && r.rivals.find(function(x){ return (x.no && row.no && String(x.no) === String(row.no)) || (teamKey(x.name) && teamKey(x.name) === teamKey(row.name)); });
       h += '<tr' + (us ? ' style="background:rgba(52,227,111,.08)"' : "") + '><td class="mono">' + (row.pos != null ? row.pos : "") + '</td><td class="mono">' + esc(row.no) + '</td><td>' + esc(row.name) + '</td><td class="mono">' + (row.laps != null ? row.laps : "") + '</td><td class="mono">' + esc(row.last) + '</td><td class="mono best">' + esc(row.best) + '</td><td class="mono">' + esc(row.gap) + '</td><td class="mono">' + esc(row.int) + '</td>'
@@ -1067,7 +1071,7 @@ function paneTiming(){
     h += '</tbody></table></div>';
   }
 
-  h += h2("Lap import") + '<p class="hint">Timing exports (Speedhive / MYLAPS, Apex, RaceChrono, or any CSV): one lap per row with a lap-time column and optional sector columns. Lines that are just a lap time work too. Choose where the laps go.</p>'
+  h += '<h3 class="sub">Lap import</h3>' + '<p class="hint">Timing exports (Speedhive / MYLAPS, Apex, RaceChrono, or any CSV): one lap per row with a lap-time column and optional sector columns. Lines that are just a lap time work too. Choose where the laps go.</p>'
     + '<div class="btn-row" style="margin-top:8px"><select id="lapTarget">'
     + r.stints.map(function(s, i){ return '<option value="stint:' + i + '">Race · S' + (i+1) + (s.d && driverById(r, s.d) ? " · " + esc(first(driverById(r, s.d).name)) : "") + '</option>'; }).join("")
     + r.sessions.map(function(s){ return r.drivers.map(function(d){ return '<option value="sess:' + s.id + ':' + d.id + '">' + esc(s.name || s.type) + ' · ' + esc(first(d.name)) + '</option>'; }).join(""); }).join("")
@@ -1143,7 +1147,7 @@ function arcPath(r, a0, a1){
 }
 function paneMap(){
   var r = cur(), n = r.plan.length, rs = raceState(r), total = planTotal(r) || 1;
-  var h = '<h2 class="w">Map</h2><div class="cmv">';
+  var h = '<h2>Map</h2><div class="cmv">';
   var pos = latestPositions(r);
   h += '<div class="cmv-tower">';
   if (pos.length){
@@ -1209,7 +1213,7 @@ function paneMap(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.plan.length;
-  var h = '<div class="zone">Competition</div>' + '<h2 class="w">Rivals</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
+  var h = '<h2>Rivals &amp; timing</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings' + (hasClasses(r) ? ', and “In class” is the rank among entries sharing a class' : '') + '.</p>';
   h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
@@ -1227,6 +1231,7 @@ function paneRivals(){
   });
   h += '</tbody></table></div>';
   h += posChart(r);
+  h += paneTiming();
   return h;
 }
 function posChart(r){
@@ -1240,7 +1245,7 @@ function posChart(r){
   var W = 720, H = 60 + maxP * 24, L = 40, R = 110, T = 18, B = 30;
   var xs = function(x){ return L + (n === 1 ? 0 : x * (W - L - R) / (n - 1)); };
   var ys = function(y){ return T + (y - 1) * (H - T - B) / Math.max(1, maxP - 1); };
-  var s = '<h2 style="margin-top:20px">Position trace</h2><div class="legend"><span class="pill"><span class="dot" style="background:' + PAL[0].mark + '"></span>' + esc(r.meta.name || "Us") + '</span><span class="pill"><span class="dot" style="background:' + RIVAL_C + '"></span>rivals</span></div>';
+  var s = '<h3 class="sub">Position trace</h3>' + '<div class="legend"><span class="pill"><span class="dot" style="background:' + PAL[0].mark + '"></span>' + esc(r.meta.name || "Us") + '</span><span class="pill"><span class="dot" style="background:' + RIVAL_C + '"></span>rivals</span></div>';
   s += '<div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Race position by stint">';
   for (var p = 1; p <= maxP; p++)
     s += '<line x1="' + L + '" y1="' + ys(p) + '" x2="' + (W - R) + '" y2="' + ys(p) + '" stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
@@ -1265,25 +1270,12 @@ function posChart(r){
 /* ---------- ANALYSIS ---------- */
 function paneAnalysis(){
   var r = cur(), laps = allLaps(r), m = r.meta;
-  var h = '<div class="zone">Pace</div>' + '<h2 class="w">Analysis</h2>';
-  /* sessions comparison always available */
-  var sessBlock = "";
-  var anySess = r.sessions.some(function(s){ return Object.keys(s.times).some(function(d){ return s.times[d].length; }); });
-  if (anySess){
-    sessBlock += h2("Session bests") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>' + r.sessions.map(function(s){ return '<th>' + esc(s.name || s.type) + '</th>'; }).join("") + '<th>Race best</th></tr></thead><tbody>';
-    r.drivers.forEach(function(d){
-      var rb = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
-      h += "";
-      sessBlock += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(d.name) + '</span></td>'
-        + r.sessions.map(function(s){ var t = s.times[d.id] || []; return '<td class="mono">' + (t.length ? fmtLap(Math.min.apply(null, t)) : "—") + '</td>'; }).join("")
-        + '<td class="mono best">' + (rb.length ? fmtLap(Math.min.apply(null, rb)) : "—") + '</td></tr>';
-    });
-    sessBlock += '</tbody></table></div>';
-  }
+  var h = '<h2>Analysis</h2>';
   if (!laps.length){
     var manual = r.stints.map(stintBest).filter(Boolean);
     h += '<p class="hint">Log laps in the Race tab (stopwatch or typed) and this page fills itself in.' + (manual.length ? ' Best recorded stint time so far: <span class="mono best">' + fmtLap(Math.min.apply(null, manual)) + '</span>.' : "") + '</p>';
-    return h + sessBlock;
+    return h + '<h2>Sectors</h2>' + (sectorBlock(r) || '<p class="hint">Log laps with sector splits and the best sectors, ideal lap, and time left on the table appear here.</p>')
+      + '<h2>Lap times</h2><p class="hint">The lap-time trace draws once race laps are logged.</p>';
   }
   var times = laps.map(function(l){ return l.ms; });
   var best = Math.min.apply(null, times);
@@ -1320,7 +1312,7 @@ function paneAnalysis(){
   h += '</tbody></table></div>';
 
   /* per-stint table */
-  h += h2("Stints") + '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Driver</th><th>' + vehLabel(r) + '</th><th>Laps</th><th>Best</th><th>Avg</th><th>&Delta; tgt</th><th>Pos</th></tr></thead><tbody>';
+  h += '<h3 class="sub">Stints</h3>' + '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Driver</th><th>' + vehLabel(r) + '</th><th>Laps</th><th>Best</th><th>Avg</th><th>&Delta; tgt</th><th>Pos</th></tr></thead><tbody>';
   r.stints.forEach(function(s, i){
     if (!s.laps.length && !s.d) return;
     var d = driverById(r, s.d), av = s.laps.length ? mean(s.laps) : null;
@@ -1331,9 +1323,8 @@ function paneAnalysis(){
       + '<td class="mono">' + (s.ps || s.pe ? esc(s.ps || "?") + " → " + esc(s.pe || "?") : "—") + '</td></tr>';
   });
   h += '</tbody></table></div>';
-  h += sessBlock;
-  h += sectorBlock(r);
-  h += lapChart(r, laps, best);
+  h += '<h2>Sectors</h2>' + (sectorBlock(r) || '<p class="hint">Log laps with sector splits and the best sectors, ideal lap, and time left on the table appear here.</p>');
+  h += '<h2>Lap times</h2>' + lapChart(r, laps, best);
   return h;
 }
 function sectorBlock(r){
@@ -1343,7 +1334,7 @@ function sectorBlock(r){
   r.sessions.forEach(function(s){ Object.keys(s.secs).forEach(function(d){ (s.secs[d] || []).forEach(function(sc, i){ if (sc) rows.push({d:d, secs:sc, ms:s.times[d][i], src:s.name || s.type}); }); }); });
   if (!rows.length) return "";
   function bestOf(list){ var b = [], ideal = 0; for (var k = 0; k < n; k++){ var v = Math.min.apply(null, list.map(function(x){ return x.secs[k]; })); b.push(v); ideal += v; } return {b:b, ideal:ideal, best:Math.min.apply(null, list.map(function(x){ return x.ms; }))}; }
-  var h = h2("Sectors") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>';
+  var h = '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>';
   for (var k = 0; k < n; k++) h += '<th>Best S' + (k+1) + '</th>';
   h += '<th>Ideal lap</th><th>Actual best</th><th>Left on table</th></tr></thead><tbody>';
   var groups = [{name:"All laps", list:rows, col:null}].concat(r.drivers.map(function(d){ return {name:d.name, list:rows.filter(function(x){ return x.d === d.id; }), col:PAL[d.c % PAL.length].ui}; }));
@@ -1366,7 +1357,7 @@ function lapChart(r, laps, best){
   var pad = Math.max(300, (hi - lo) * 0.08); lo -= pad; hi += pad;
   var xs = function(i){ return L + (laps.length === 1 ? 0 : i * (W - L - R) / (laps.length - 1)); };
   var ys = function(ms){ return T + (ms - lo) * (H - T - B) / (hi - lo); };
-  var s = '<h2 style="margin-top:20px">Lap times</h2>';
+  var s = '';
   s += '<div class="legend">' + r.drivers.map(function(d){
       return '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].mark + '"></span>' + esc(first(d.name)) + '</span>'; }).join("")
     + '</div><div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Lap times across the race">';
@@ -1393,13 +1384,32 @@ function lapChart(r, laps, best){
   return s;
 }
 
+/* ---------- SESSION BESTS (Plan page) ---------- */
+function paneSessionBests(){
+  var r = cur(), laps = allLaps(r);
+  /* sessions comparison always available */
+  var sessBlock = "";
+  var anySess = r.sessions.some(function(s){ return Object.keys(s.times).some(function(d){ return s.times[d].length; }); });
+  if (anySess){
+    sessBlock += '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>' + r.sessions.map(function(s){ return '<th>' + esc(s.name || s.type) + '</th>'; }).join("") + '<th>Race best</th></tr></thead><tbody>';
+    r.drivers.forEach(function(d){
+      var rb = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
+      sessBlock += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(d.name) + '</span></td>'
+        + r.sessions.map(function(s){ var t = s.times[d.id] || []; return '<td class="mono">' + (t.length ? fmtLap(Math.min.apply(null, t)) : "—") + '</td>'; }).join("")
+        + '<td class="mono best">' + (rb.length ? fmtLap(Math.min.apply(null, rb)) : "—") + '</td></tr>';
+    });
+    sessBlock += '</tbody></table></div>';
+  }
+  return '<h2>Session bests</h2>' + (sessBlock || '<p class="hint">Best lap per driver in every session, next to their race best, once session times are logged.</p>');
+}
+
 /* ---------- SERIES (championship points) ---------- */
 function paneSeries(){
   var names = seriesNames();
-  if (!names.length) return '<div class="zone">Championship</div>' + '<h2>Standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
+  if (!names.length) return '<h2>Championship</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
   if (names.indexOf(serName) < 0) serName = (names.indexOf(String(cur().meta.series || "").trim()) >= 0 ? String(cur().meta.series).trim() : names[0]);
   var cfg = seriesCfg(serName), st = standings(serName);
-  var h = '<div class="zone">Championship</div>' + '<h2 class="w">Standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
+  var h = '<h2>Championship</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
     + '<span class="pill">' + st.races.length + ' round' + (st.races.length === 1 ? "" : "s") + ' in the app</span></div>';
   h += '<div class="grid2">'
     + '<div class="field"><label>Points by finishing position (1st, 2nd, …)</label><input type="text" class="mono" value="' + esc(cfg.scheme) + '" data-ser="scheme" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></div>'
@@ -1433,7 +1443,7 @@ function paneSeries(){
     }
   } else h += '<p class="hint">No points yet — enter finishing positions for the rounds in this series.</p>';
 
-  h += h2("Adjustments") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
+  h += '<h3 class="sub">Adjustments</h3>' + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
   if ((cfg.adj || []).length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>Points</th><th>Note</th><th></th></tr></thead><tbody>';
     cfg.adj.forEach(function(a, i){
@@ -1446,7 +1456,7 @@ function paneSeries(){
 
 /* ---------- render + events ---------- */
 window.paneSetup = paneSetup; window.paneStrategy = paneStrategy; window.paneSessions = paneSessions; window.paneRace = paneRace;
-window.paneMap = paneMap; window.paneRaceLog = paneRaceLog; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
+window.paneMap = paneMap; window.paneRaceLog = paneRaceLog; window.paneSessionBests = paneSessionBests; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
 /* every <h2> starts a new floating card; anything before the first h2 gets its own */
 function cardify(html){
   var tmp = document.createElement("div"); tmp.innerHTML = html;
