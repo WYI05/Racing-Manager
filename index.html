@@ -573,7 +573,7 @@ var serName = "";                                        // series shown in the 
 var cd = { running:false, endAt:0, stint:0 };           // countdown
 /* four phases of a race weekend; the rail inside each page lists its windows */
 var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
-var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneRivals","paneTiming"], review:["paneAnalysis","paneSeries"] };
+var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneRaceLog","paneRivals","paneTiming"], review:["paneAnalysis","paneSeries"] };
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -907,6 +907,11 @@ function paneRace(){
   h += '</tbody></table></div>';
 
   /* race log */
+  return h;
+}
+function paneRaceLog(){
+  var r = cur();
+  var h = "";
   h += '<div class="zone">Log &amp; result</div>' + h2("Race log") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
   if (r.log.length){
@@ -1462,7 +1467,7 @@ function paneSeries(){
 
 /* ---------- render + events ---------- */
 window.paneSetup = paneSetup; window.paneStrategy = paneStrategy; window.paneSessions = paneSessions; window.paneRace = paneRace;
-window.paneMap = paneMap; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
+window.paneMap = paneMap; window.paneRaceLog = paneRaceLog; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
 /* every <h2> starts a new floating card; anything before the first h2 gets its own */
 function cardify(html){
   var tmp = document.createElement("div"); tmp.innerHTML = html;
