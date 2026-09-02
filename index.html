@@ -30,7 +30,7 @@
       radial-gradient(1400px 700px at 50% 110%, rgba(40,48,60,.55), transparent 70%),
       linear-gradient(180deg,#151a22 0%,#0d1014 42%,#08090b 100%);
     background-attachment:fixed}
-  .wrap{max-width:1100px;margin:0 auto}
+  .wrap{max-width:none;margin:0 auto}
   a{color:var(--accent-soft)}
   h1,h2,h3{font-family:var(--sans);letter-spacing:-.012em;margin:0;font-weight:600}
   .mono{font-family:var(--sans);font-variant-numeric:tabular-nums}
@@ -95,14 +95,35 @@
   .tabs button.on{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
   .home-hero{min-height:calc(100vh - 200px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(30px,7vh,64px);text-align:center;padding:24px 0}
 
-  /* Cards: every titled section floats as its own glass panel */
-  section.pane{background:none;border:0;padding:0;margin:18px 0 26px;box-shadow:none}
+  /* Deck: a slim window rail on the left, windows tiled across the width */
+  #deck{display:grid;grid-template-columns:68px minmax(0,1fr);gap:12px;align-items:start;margin:14px 0 26px}
+  #rail{position:sticky;top:12px;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:14px;
+    background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+    box-shadow:0 12px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06)}
+  #rail button{width:54px;height:46px;padding:0;border-radius:10px;border:0;box-shadow:none;background:transparent;color:var(--ink-dim);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+  #rail button small{font-size:8px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint);max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #rail button:hover{background:rgba(255,255,255,.08);color:#fff}
+  #rail button.on{background:rgba(255,255,255,.14);color:#fff}
+  #rail button.on small{color:var(--accent)}
+  section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px;align-items:start}
+  /* Windows: glass panel with a compact title bar; click the bar to roll it up */
   .card{background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(1.15);backdrop-filter:blur(22px) saturate(1.15);
-    border:1px solid var(--line);border-radius:18px;padding:16px 18px 18px;margin:0 0 14px;
+    border:1px solid var(--line);border-radius:16px;padding:0 14px 14px;margin:0;min-width:0;
     box-shadow:0 22px 60px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06)}
-  .card h2{display:flex;align-items:center;gap:9px;margin:0 0 12px !important;padding:0;background:none;border:0;
-    font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:-.01em;text-transform:none;color:#fff}
+  .card.wide{grid-column:1/-1}
+  .card h2{display:flex;align-items:center;gap:9px;margin:0 -14px 12px !important;padding:8px 14px;border:0;border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.045);border-radius:16px 16px 0 0;cursor:pointer;user-select:none;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:-.005em;text-transform:none;color:#fff}
   .card h2::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px rgba(52,227,111,.7);flex:none}
+  .card h2::after{content:"";margin-left:auto;width:9px;height:9px;border:1.5px solid rgba(255,255,255,.3);border-radius:2px;flex:none}
+  .card h2:hover{background:rgba(255,255,255,.07)}
+  .card.min h2{border-bottom:0;border-radius:16px;margin-bottom:0 !important}
+  .card.min h2::after{height:0;border-width:0 0 1.5px}
+  .card.min>:not(h2){display:none}
+  .card.flash{box-shadow:0 0 0 2px rgba(52,227,111,.6), 0 22px 60px rgba(0,0,0,.42)}
+  @media (max-width:900px){#deck{grid-template-columns:1fr}#rail{display:none}}
   .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
 
   .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 16px}
@@ -187,13 +208,13 @@
   .tw-cls{font-size:10px;color:var(--purple-soft);margin-left:6px;letter-spacing:.04em}
   .tw-row .up{color:var(--green)}.tw-row .dn{color:var(--red)}.tw-row .fl{color:var(--ink-faint)}
   .chart-wrap{overflow-x:auto}
-  .chart-wrap svg{min-width:560px;width:100%;height:auto;display:block}
+  .chart-wrap svg{min-width:560px;width:100%;max-width:960px;height:auto;display:block;margin:0 auto}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0 2px;font-size:12.5px;color:var(--ink-dim)}
   .legend .pill{background:none;border:0;padding:0}
 
   footer{margin-top:8px;font-size:12px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:6px 22px}
   .hidden{display:none}
-  @media (max-width:640px){ .card{padding:14px 12px 16px;border-radius:14px} body{font-size:14px} }
+  @media (max-width:640px){ .card{padding:0 12px 14px;border-radius:14px} .card h2{margin:0 -12px 12px !important;padding:8px 12px} body{font-size:14px} }
 
   /* Home background (canvas-painted video) and the corner feed */
   #bgStage{position:fixed;inset:0;z-index:0;pointer-events:none}
@@ -238,7 +259,7 @@
     <h1 class="hs-h1">Pitwall</h1>
   </div>
 </main>
-<section class="pane" id="pane"></section>
+<div id="deck" hidden><aside id="rail" aria-label="Windows on this page"></aside><section class="pane" id="pane"></section></div>
 
 <footer id="appFoot">
   <div>Data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
@@ -1465,6 +1486,12 @@ function cardify(html){
     if (k.nodeType === 1 && k.tagName === "H2" || !card){ card = document.createElement("div"); card.className = "card"; out.appendChild(card); }
     card.appendChild(k);
   });
+  /* charts, the map, timer rows, stint planners, and wide tables take the full width; forms and short tables tile */
+  Array.prototype.forEach.call(out.children, function(c, i){
+    var wide = c.querySelector(".chart-wrap,.cmv,.tools-row,.plan-row,#pasteBox,.tiles") || Array.prototype.some.call(c.querySelectorAll("table"), function(t){ return t.querySelectorAll("thead th").length >= 7; });
+    if (wide) c.classList.add("wide");
+    c.id = "win" + i;
+  });
   return out.innerHTML;
 }
 function render(){
@@ -1473,7 +1500,7 @@ function render(){
   var home = tab === "home";
   document.getElementById("homeHero").hidden = !home;
   document.getElementById("appFoot").hidden = home;
-  pane.hidden = home;
+  document.getElementById("deck").hidden = home;
   if (!home) pane.innerHTML = cardify(tab === "setup" ? paneSetup()
     : tab === "strategy" ? paneStrategy()
     : tab === "sessions" ? paneSessions()
@@ -1483,6 +1510,12 @@ function render(){
     : tab === "rivals" ? paneRivals()
     : tab === "series" ? paneSeries()
     : paneAnalysis());
+  if (!home){
+    document.getElementById("rail").innerHTML = Array.prototype.map.call(pane.querySelectorAll(".card > h2"), function(h){
+      var t = h.textContent.replace(/\s+/g, " ").trim(), w = t.split(" "), ab = (w.length > 1 && w[1].length > 1 ? w[0][0] + w[1][0] : t.slice(0, 2)).toUpperCase();
+      return '<button data-win="' + h.parentNode.id + '" title="' + esc(t) + '">' + esc(ab) + '<small>' + esc(t.replace(/\s*[·—-].*$/, "").replace(/&amp;/g, "&")) + '</small></button>';
+    }).join("");
+  }
   var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", timing:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
   var feed = document.getElementById("feedMon");
   if (home){
@@ -1586,7 +1619,16 @@ paneEl.addEventListener("change", function(e){
   else if (t.id === "swStint") { sw.stint = +t.value; }
   else if (t.id === "cdStint") { cd.stint = +t.value; cd.running = false; render(); }
 });
+document.getElementById("rail").addEventListener("click", function(e){
+  var b = e.target.closest("[data-win]"); if (!b) return;
+  var w = document.getElementById(b.getAttribute("data-win")); if (!w) return;
+  w.classList.remove("min"); w.scrollIntoView({behavior:"smooth", block:"start"});
+  Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function(x){ x.classList.toggle("on", x === b); });
+  w.classList.add("flash"); setTimeout(function(){ w.classList.remove("flash"); }, 900);
+});
 paneEl.addEventListener("click", function(e){
+  var hb = e.target.closest(".card > h2");
+  if (hb){ hb.parentNode.classList.toggle("min"); return; }
   var t = e.target.closest("button"); if (!t) return;
   var r = cur(), a;
   if (t.id === "newRace") doNewRace();
