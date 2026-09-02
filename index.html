@@ -1610,7 +1610,7 @@ paneEl.addEventListener("click", function(e){
     var ty = document.getElementById("sessType").value, nmS = document.getElementById("sessName").value.trim();
     var same = r.sessions.filter(function(s){ return s.type === ty; }).length;
     var tn = (SESSION_TYPES.find(function(x){ return x[0] === ty; }) || ["", ty])[1];
-    r.sessions.push({id:uid(), type:ty, name:nmS || (tn + (same ? " " + (same + 1) : "")), cond:"", notes:"", times:{}}); render();
+    r.sessions.push({id:uid(), type:ty, name:nmS || (tn + (same ? " " + (same + 1) : "")), cond:"", notes:"", times:{}, secs:{}}); render();
   }
   else if ((a = t.getAttribute("data-sdel"))){
     var sx = sessById(r, a), cnt = sx ? Object.keys(sx.times).reduce(function(n, d){ return n + sx.times[d].length; }, 0) : 0;
@@ -1697,6 +1697,7 @@ function addQuali(key){
   var r = cur(), lp = parseLapOrSectors(inp.value, nSect(r));
   if (!lp){ inp.select(); return; }
   var k = key.split(":"), s = sessById(r, k[0]); if (!s) return;
+  s.secs = s.secs || {};
   (s.times[k[1]] = s.times[k[1]] || []).push(lp.ms);
   s.secs[k[1]] = alignSecs(s.times[k[1]], s.secs[k[1]]); s.secs[k[1]][s.times[k[1]].length - 1] = lp.secs;
   render();
