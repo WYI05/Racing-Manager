@@ -217,22 +217,6 @@
   /* Home background (canvas-painted video) and the corner feed */
   #bgStage{position:fixed;inset:0;z-index:0;pointer-events:none}
   #bgStage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;filter:blur(1.6px) saturate(1.04);transform:scale(1.02)}
-  #ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-  #ambient img{display:block;width:100%;height:62vh;object-fit:cover;transform:scale(1.25);
-    filter:blur(72px) saturate(1.6) brightness(.75);opacity:.4;
-    -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 45%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 45%,transparent 100%)}
-  .card.feed{padding-bottom:0;overflow:hidden}
-  .card.feed h2{margin-bottom:0 !important}
-  .card.feed img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#0b0d10}
-  .card.feed.min img{display:none}
-  .fm-btn,.card.feed .fm-btn{margin-left:auto;padding:2px 8px;font-size:10px;font-weight:500;letter-spacing:.02em;text-transform:none;border-radius:7px;line-height:1.4}
-  #feedMon{position:fixed;right:14px;bottom:14px;z-index:5;width:224px;border-radius:14px;border:1px solid var(--line);
-    background:var(--glass);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45)}
-  .fm-bar{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid rgba(255,255,255,.06);
-    font-family:var(--sans);font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim)}
-  .fm-sq{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(52,227,111,.7);flex:none}
-  #feedMon img{display:block;width:100%;height:124px;object-fit:cover}
-  @media (max-width:820px){#feedMon{display:none !important}}
   .wrap{position:relative;z-index:1}
   .wrap header,.wrap footer{text-shadow:0 1px 10px rgba(0,0,0,.55)}
 
@@ -247,8 +231,6 @@
 </head>
 <body>
 <div id="bgStage" aria-hidden="true"><canvas id="bgCanvas"></canvas></div>
-<div id="ambient" aria-hidden="true" hidden><img id="ambImg" alt=""></div>
-<div id="feedMon" hidden><div class="fm-bar"><span class="fm-sq"></span><span id="feedLabel">LIVE</span><button class="fm-btn" id="feedDock" title="Dock into the page">Dock</button></div><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
 <div class="wrap">
 
 <header>
@@ -542,18 +524,7 @@ function standings(name){
   }).sort(function(a, b){ return b.total - a.total || a.name.localeCompare(b.name); });
   return {races:races, rows:rows, pts:pts, byClass:byClass};
 }
-var GIFS = {
-  home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4"],
-  setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
-  strategy:    ["https://media.giphy.com/media/QOVipuxpjZoBoUNDGt/giphy.gif"],
-  highlights:  ["https://media.giphy.com/media/Uryw0ZBmHC0iA/giphy.gif",
-                "https://media.giphy.com/media/5uz1LWmcYxLiM/giphy.gif"],
-  onboard:     ["https://media.giphy.com/media/AFtIhlHAmk7mZtGWGb/giphy.gif"],
-  map:         ["https://media.giphy.com/media/5uz1LWmcYxLiM/giphy.gif"],
-  champagne:   ["https://media.giphy.com/media/NSI5daZGbVYJfzXbZo/giphy.gif"],
-  celebration: ["https://media.giphy.com/media/MFyOkMBGRRuJjJ6flU/giphy.gif",
-                "https://media.giphy.com/media/w9Y7z2qudgYgw/giphy.gif"]
-};
+var HOME_CLIP = "https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4";
 var bgVid = null, bgRAF = 0, bgCanvas = document.getElementById("bgCanvas");
 function bgSize(){ bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; }
 function bgDraw(){
@@ -583,10 +554,6 @@ function bgStop(){
   bgCanvas.style.display = "none";
 }
 window.addEventListener("resize", function(){ if (tab === "home") bgSize(); });
-var feedMode = "tile";   /* "tile" = live window docked in the page grid, "corner" = floating monitor */
-try { feedMode = localStorage.getItem("pw-feed-mode") || "tile"; } catch(e){}
-var GIF_PICK = {};
-Object.keys(GIFS).forEach(function(k){ GIF_PICK[k] = GIFS[k][Math.floor(Math.random() * GIFS[k].length)]; });
 function tgtPill(avgMs){
   var tgt = parseLap(cur().meta.targetLap);
   if (!tgt || avgMs == null) return "";
@@ -1526,31 +1493,7 @@ function render(){
       return '<button data-win="' + h.parentNode.id + '" title="' + esc(t) + '">' + esc(ab) + '<small>' + esc(t.replace(/\s*[·—-].*$/, "").replace(/&amp;/g, "&")) + '</small></button>';
     }).join("");
   }
-  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", timing:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
-  var feed = document.getElementById("feedMon");
-  if (home){
-    feed.hidden = true; document.getElementById("ambient").hidden = true;
-    if (GIF_PICK.home) bgStart(GIF_PICK.home);
-  } else {
-    bgStop();
-    var src = GIF_PICK[bgKey] || "", label = "Live · " + bgKey;
-    /* ambient wash: the page's clip, blurred into the background behind the top of the page */
-    var amb = document.getElementById("ambient"), ai = document.getElementById("ambImg");
-    amb.hidden = !src; if (src && ai.getAttribute("src") !== src) ai.src = src;
-    feed.hidden = feedMode !== "corner" || !src;
-    if (feedMode === "corner"){
-      var fi = document.getElementById("feedImg");
-      if (src && fi.getAttribute("src") !== src) fi.src = src;
-      document.getElementById("feedLabel").textContent = label.toUpperCase();
-    } else if (src){
-      /* docked: the feed is the first window on the page and shows up in the rail */
-      var fc = document.createElement("div"); fc.className = "card feed"; fc.id = "winfeed";
-      fc.innerHTML = '<h2>' + esc(label) + '<button class="fm-btn" id="feedPop" title="Float in the corner">Corner</button></h2><img src="' + esc(src) + '" alt="" onerror="this.parentNode.remove()">';
-      pane.insertBefore(fc, pane.firstChild);
-      var rail = document.getElementById("rail");
-      rail.insertAdjacentHTML("afterbegin", '<button data-win="winfeed" title="' + esc(label) + '">LV<small>Live</small></button>');
-    }
-  }
+  if (home) bgStart(HOME_CLIP); else bgStop();
   save();
 }
 
@@ -1649,10 +1592,7 @@ document.getElementById("rail").addEventListener("click", function(e){
   Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function(x){ x.classList.toggle("on", x === b); });
   w.classList.add("flash"); setTimeout(function(){ w.classList.remove("flash"); }, 900);
 });
-function setFeedMode(m){ feedMode = m; try { localStorage.setItem("pw-feed-mode", m); } catch(e){} render(); }
-document.getElementById("feedDock").addEventListener("click", function(){ setFeedMode("tile"); });
 paneEl.addEventListener("click", function(e){
-  if (e.target.closest("#feedPop")){ setFeedMode("corner"); return; }
   var hb = e.target.closest(".card > h2");
   if (hb){ hb.parentNode.classList.toggle("min"); return; }
   var t = e.target.closest("button"); if (!t) return;
