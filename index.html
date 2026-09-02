@@ -107,6 +107,11 @@
   details.adv[open] summary::before{content:"−"}
   details.adv summary:hover{color:var(--ink)}
   .adv-body{padding-top:8px}
+  .finding{margin:6px 0;padding:7px 10px;background:#0d1013;border-left:3px solid #3a414b;font-size:12.5px;line-height:1.45;color:var(--ink-dim)}
+  .finding b{display:block;color:var(--ink);font-size:12px;margin-bottom:2px}
+  .finding.f-do{border-color:var(--accent)} .finding.f-do b{color:var(--accent-soft)}
+  .finding.f-warn{border-color:var(--amber)} .finding.f-warn b{color:var(--amber)}
+  .finding .mini{margin-top:6px}
   .card h3.sub{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
   .card h2{display:flex;align-items:center;gap:8px;margin:0 -10px 10px !important;padding:4px 10px;border:0;border-bottom:1px solid var(--line);
     background:var(--bar);border-radius:0;min-height:24px;
@@ -556,11 +561,12 @@ function tgtPill(avgMs){
 var tab = "home";
 var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0, splits:[] };  // stopwatch
-var serName = "";                                        // series shown in the Series tab
+var serName = "";
+var lastLiveRender = Date.now();                                        // series shown in the Series tab
 var cd = { running:false, endAt:0, stint:0 };           // countdown
 /* four phases of a race weekend */
 var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
-var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions","paneSessionBests"], race:["paneRace","paneMap","paneRaceLog","paneRivals"], review:["paneAnalysis","paneSeries"] };
+var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions","paneFindings"], race:["paneRace","paneMap","paneRaceLog","paneRivals"], review:["paneAnalysis","paneSeries"] };
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -836,6 +842,7 @@ function paneSessions(){
     });
     h += '</div></div>';
   });
+  h += paneSessionBests();
   return h;
 }
 
@@ -912,7 +919,10 @@ function paneRace(){
 function paneRaceLog(){
   var r = cur();
   var h = "";
-  h += h2("Log &amp; result") + info("Flags, safety cars and incidents as they happen, then the finish position at the end.") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
+  h += h2("Log &amp; result") + info("Log what happens and the calls update: what to do now, when to pit, who's next.")
+    + '<h3 class="sub" style="margin-top:4px">What to do now</h3>' + renderFindings(liveCalls(r).concat(rivalFindings(r, driverModel(r), lapsPerStint(r)).filter(function(f){ return f.kind !== "info" || /Car /.test(f.title); })))
+    + '<h3 class="sub">Race log</h3><div class="btn-row" style="margin-bottom:6px"><span class="hint">Quick log:</span><button class="mini" data-quick="sc">Safety car</button><button class="mini" data-quick="green">Green</button><button class="mini" data-quick="penalty">Penalty</button><button class="mini" data-quick="weather">Rain</button><button class="mini" data-quick="incident">Slow kart</button></div>'
+    + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
   if (r.log.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Flag</th><th>Note</th><th></th></tr></thead><tbody>';
@@ -1401,7 +1411,164 @@ function lapChart(r, laps, best){
   return s;
 }
 
-/* ---------- SESSION BESTS (Plan page) ---------- */
+/* ---------- STRATEGY ENGINE (tuned for fixed-stint kart endurance with kart rotation) ---------- */
+function driverModel(r){
+  var out = {}, minW = +r.meta.minWeight || 0;
+  r.drivers.forEach(function(d){
+    var race = allLaps(r).filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
+    var sess = []; r.sessions.forEach(function(s){ sess = sess.concat(s.times[d.id] || []); });
+    var pool = race.length >= 5 ? race : race.concat(sess);
+    var best = pool.length ? Math.min.apply(null, pool) : null;
+    var clean = best ? pool.filter(function(x){ return x <= best * 1.05; }) : [];
+    var grade = String((d.licence || "") + " " + (d.notes || "")).toLowerCase();
+    var level = /pro/.test(grade) ? 3 : /semi|silver|inter/.test(grade) ? 2 : /\bam\b|amateur|bronze|rookie|novice/.test(grade) ? 1 : 0;
+    var w = +d.weight || 0;
+    out[d.id] = {d:d, best:best, avg:clean.length ? mean(clean) : null, sd:clean.length > 2 ? sdev(clean) : null, n:pool.length, raceN:race.length, level:level, ballast:(minW && w) ? Math.max(0, minW - w) : null};
+  });
+  return out;
+}
+function rankDrivers(r, dm){
+  return r.drivers.slice().sort(function(a, b){
+    var A = dm[a.id], B = dm[b.id];
+    if (A.avg != null && B.avg != null) return A.avg - B.avg;
+    if (A.avg != null) return -1; if (B.avg != null) return 1;
+    return B.level - A.level;
+  });
+}
+function recommendedPlan(r, dm){
+  var order = rankDrivers(r, dm);
+  return order.length ? r.plan.map(function(p, i){ return order[i % order.length].id; }) : [];
+}
+function lapsPerStint(r){ var lm = lapEstMs(r); return lm ? Math.floor((+r.meta.stintMin || 20) * 60000 / lm) : null; }
+function F(kind, title, body){ return {kind:kind, title:title, body:body}; }
+function steadiest(r, dm){ var o = r.drivers.slice().sort(function(a, b){ return (dm[a.id].sd || 9e9) - (dm[b.id].sd || 9e9); })[0]; return o ? first(o.name) : "?"; }
+
+function strategyFindings(r){
+  var m = r.meta, dm = driverModel(r), out = [], n = r.plan.length, lps = lapsPerStint(r);
+  var order = rankDrivers(r, dm), fast = order[0] ? dm[order[0].id] : null, second = order[1] ? dm[order[1].id] : null;
+  var fixed = m.stintMode === "fixed";
+  if (!fixed) out.push(F("info", "Tuned for fixed stints", "These findings assume mandatory stints with a kart rotation, the SWS format. Free-strategy races use the stop calculator in Targets."));
+  /* pace */
+  if (!fast || fast.avg == null) out.push(F("warn", "No pace data yet", "Log a few laps per driver in Sessions and the engine can rank drivers, set targets and choose the stint order. Until then it goes by licence grade (Pro / Semi / Am in the driver's licence or notes)."));
+  else {
+    out.push(F("info", "Driver pace", order.map(function(d){ var x = dm[d.id]; return first(d.name) + ": best " + fmtLap(x.best) + ", race pace " + fmtLap(x.avg) + (x.sd != null ? ", ±" + (x.sd/1000).toFixed(2) + " s" : "") + " over " + x.n + " laps"; }).join(" · ") + ". Race pace = average of laps within 5% of the best."));
+    if (second && second.avg != null){
+      var gap = (second.avg - fast.avg) / 1000;
+      out.push(F("info", "Pace gap", first(fast.d.name) + " is " + gap.toFixed(2) + " s/lap quicker" + (lps ? ", about " + Math.round(gap * lps) + " s per " + m.stintMin + "-minute stint" : "") + ". Over a 3-hour race that gap decides who takes the extra stint."));
+    }
+  }
+  /* order */
+  var rec = recommendedPlan(r, dm), same = rec.length && rec.every(function(id, i){ return r.plan[i].d === id; });
+  if (fast && rec.length){
+    var fastCount = rec.filter(function(id){ return id === fast.d.id; }).length;
+    var why = first(fast.d.name) + " takes the odd stints (S1, S3 … S" + n + "), " + fastCount + " in total including the start and the finish, because " + (fast.avg != null ? "they are the quicker driver" : "of their grade") + ". " + (second ? first(second.d.name) + " takes the even stints." : "");
+    if (second && fast.sd != null && second.sd != null && second.sd < fast.sd * 0.7 && second.avg != null && lps) why += " " + first(second.d.name) + " is the steadier driver (±" + (second.sd/1000).toFixed(2) + " vs ±" + (fast.sd/1000).toFixed(2) + " s). Starting them instead costs about " + Math.round((second.avg - fast.avg) / 1000 * lps) + " s over the extra stint but lowers lap-one risk in traffic.";
+    if (m.driverChange === "yes") why += " Alternating every stint satisfies the driver-change rule.";
+    out.push(F(same ? "info" : "do", same ? "Stint order matches the recommendation" : "Recommended stint order", why + (same ? "" : ' <button class="mini primary" id="applyRec">Apply this order</button>')));
+  }
+  /* light */
+  if (m.green && /night|dusk|mixed/.test(m.light)){
+    var s2 = driverById(r, (rec[1] || (r.plan[1] && r.plan[1].d)));
+    out.push(F("info", "Light change", "With a " + clockAt(m.green, 0) + " start the light fades during S1 and S2. " + (s2 ? first(s2.name) + " in S2 " : "The S2 driver ") + "should expect braking markers to move as the floodlights take over; run one sighting lap at reduced pace rather than guessing."));
+  }
+  /* targets */
+  if (fast && fast.avg != null){
+    var tgt = fast.best * 1.01;
+    out.push(F(parseLap(m.targetLap) ? "info" : "do", "Target laps", "Consistency wins a 3-hour rental race: hold within 1% of your best. " + order.map(function(d){ var x = dm[d.id]; return x.best ? first(d.name) + " " + fmtLap(x.best * 1.01) : null; }).filter(Boolean).join(" · ") + ". " + (parseLap(m.targetLap) ? "Team target is " + fmtLap(parseLap(m.targetLap)) + "; the Race page shows the live delta." : '<button class="mini" id="applyTgt" data-tgt="' + fmtLap(tgt) + '">Set team target ' + fmtLap(tgt) + '</button>')));
+  }
+  /* ballast */
+  var bl = r.drivers.map(function(d){ var x = dm[d.id]; return x.ballast != null ? first(d.name) + " +" + x.ballast.toFixed(1) + " kg" : null; }).filter(Boolean);
+  if (bl.length) out.push(F("info", "Ballast", bl.join(", ") + ". Weight is equalised, so any pace gap is driver, not kilos. Stage each driver's plates at the swap point; a plate change inside the stop is where seconds go."));
+  else if (!m.minWeight) out.push(F("warn", "Minimum weight unknown", "Enter the minimum weight (Setup → Format → Advanced) once the track confirms it and the engine works out each driver's ballast."));
+  /* pits */
+  if (fixed){
+    var pl = +m.pitLoss || 0;
+    out.push(F("info", "Pit windows", "Fixed rotation: pit at the end of every " + m.stintMin + "-minute stint, boards at 5:00 and 3:00, IN at 1:00. " + (pl ? "Each stop costs about " + pl + " s; " + (n - 1) + " stops is roughly " + Math.round((n - 1) * pl / 60) + " minutes in the lane, so a slow swap is the easiest place to lose a position." : "Enter the pit-lane time loss (Setup → Format → Advanced) to see what each stop costs.") + " The only lever is the swap itself: next driver suited, ballast in hand, standing at the kart before the 1:00 board."));
+  }
+  /* karts */
+  var karts = kartPace(r, dm);
+  if (karts.length){
+    var slow = karts.filter(function(k){ return k.delta > 0.25; }), quick = karts.filter(function(k){ return k.delta < -0.25; });
+    out.push(F(slow.length ? "warn" : "info", "Kart pace", "Delta vs the driver's own pace: " + karts.map(function(k){ return "#" + k.no + " " + (k.delta > 0 ? "+" : "") + k.delta.toFixed(2) + " s"; }).join(" · ") + "." + (slow.length ? " Refuse " + slow.map(function(k){ return "#" + k.no; }).join(", ") + " if the rotation offers a choice; if it's assigned, don't over-drive it, the next swap fixes it." : "") + (quick.length ? " " + quick.map(function(k){ return "#" + k.no; }).join(", ") + " is quick; try to land it for the final stint." : "")));
+  } else if (m.vehicleSwap === "yes") out.push(F("info", "Karts", "Write the kart number in each stint row. After two stints the engine ranks karts and tells you which to refuse and which to chase for the last stint."));
+  return out.concat(rivalFindings(r, dm, lps));
+}
+function kartPace(r, dm){
+  var by = {};
+  r.stints.forEach(function(s){
+    if (!s.kart || s.laps.length < 3 || !s.d || !dm[s.d] || dm[s.d].avg == null) return;
+    var best = Math.min.apply(null, s.laps), clean = s.laps.filter(function(x){ return x <= best * 1.05; }), k = String(s.kart).trim();
+    (by[k] = by[k] || []).push((mean(clean) - dm[s.d].avg) / 1000);
+  });
+  return Object.keys(by).map(function(k){ return {no:k, delta:mean(by[k])}; }).sort(function(a, b){ return a.delta - b.delta; });
+}
+function rivalFindings(r, dm, lps){
+  var out = [], n = r.plan.length, ours = r.ourPos.map(function(p){ return parseInt(p, 10); });
+  var have = ours.some(function(v){ return !isNaN(v); });
+  if (!have && !feedState.rows.length){ out.push(F("info", "Rivals", "Enter positions at each stint end, or paste the timing screen, and the engine tracks who gains on whom and during whose stints.")); return out; }
+  var trend = {};
+  for (var i = 1; i < n; i++){ var a = ours[i-1], b = ours[i]; if (isNaN(a) || isNaN(b)) continue; var d = r.stints[i].d || r.plan[i].d; if (!d) continue; (trend[d] = trend[d] || []).push(a - b); }
+  var tl = Object.keys(trend).map(function(id){ var dd = driverById(r, id); return dd ? first(dd.name) + " " + (mean(trend[id]) >= 0 ? "+" : "") + mean(trend[id]).toFixed(1) + " places/stint" : null; }).filter(Boolean);
+  if (tl.length) out.push(F("info", "Where we gain and lose", tl.join(" · ") + ". Negative is places lost in that driver's stints. If one driver is bleeding places, keep them away from the first and last stints, where positions are hardest to recover."));
+  var rl = r.rivals.map(function(rv){ var ps = rv.pos.map(function(p){ return parseInt(p, 10); }).filter(function(v){ return !isNaN(v); }); if (ps.length < 2) return null; var g = ps[0] - ps[ps.length-1]; return rv.name + " " + (g > 0 ? "gained " + g : g < 0 ? "lost " + (-g) : "held") + ", now P" + ps[ps.length-1]; }).filter(Boolean);
+  if (rl.length) out.push(F("info", "Rival movement", rl.join(" · ") + "."));
+  var rows = feedState.rows;
+  if (rows.length){
+    var us = rows.find(function(x){ return isUsRow(r, x); });
+    if (us && us.pos != null){
+      var ahead = rows.find(function(x){ return x.pos === us.pos - 1; }), behind = rows.find(function(x){ return x.pos === us.pos + 1; });
+      var ourLast = parseLap(us.last);
+      var num = function(v){ var f = parseFloat(String(v || "").replace(/[^\d.\-]/g, "")); return isNaN(f) ? null : f; };
+      if (ahead){
+        var g = num(us.int) || num(us.gap), aLast = parseLap(ahead.last), rate = (ourLast && aLast) ? (aLast - ourLast) / 1000 : null;
+        out.push(F("do", "Car ahead: " + ahead.name + " (P" + ahead.pos + ")", (g != null ? "Gap " + g.toFixed(1) + " s. " : "")
+          + (rate == null ? "Add last-lap times to the feed for a catch rate." : rate > 0
+            ? "You are " + rate.toFixed(2) + " s/lap quicker" + (g != null ? ", a pass in about " + Math.ceil(g / rate) + " laps" + (lps && Math.ceil(g / rate) > lps ? ", more than a stint, so the real chance is their pit stop: keep the swap tight and take them in the lane." : ". Board a push signal.") : ".")
+            : "They are " + (-rate).toFixed(2) + " s/lap quicker. Don't chase; protect the position and wait for their stop.")));
+      }
+      if (behind){
+        var g2 = num(behind.int) || (num(behind.gap) != null && num(us.gap) != null ? num(behind.gap) - num(us.gap) : null), bLast = parseLap(behind.last), rate2 = (ourLast && bLast) ? (ourLast - bLast) / 1000 : null;
+        out.push(F(rate2 != null && rate2 > 0 ? "warn" : "info", "Car behind: " + behind.name + " (P" + behind.pos + ")", (g2 != null ? "Gap " + g2.toFixed(1) + " s. " : "")
+          + (rate2 == null ? "" : rate2 > 0 ? "Closing at " + rate2.toFixed(2) + " s/lap" + (g2 != null ? ", on you in about " + Math.ceil(g2 / rate2) + " laps. Defend the inside of the main braking zone and tell the driver at the next board." : ".") : "You are pulling away at " + (-rate2).toFixed(2) + " s/lap; keep hitting the target.")));
+      }
+    }
+  }
+  return out;
+}
+function liveCalls(r){
+  var out = [], m = r.meta, dm = driverModel(r), rs = raceState(r), lps = lapsPerStint(r);
+  var stintMs = (+m.stintMin || 20) * 60000, into = rs.live ? rs.elapsed - unitsToMs(r, planStart(r, rs.stint - 1)) : null, left = into != null ? stintMs - into : null;
+  var recent = r.log.slice(-6).reverse();
+  var sc = recent.find(function(e){ return e.kind === "sc" || e.kind === "yellow" || e.kind === "red"; });
+  if (sc){
+    if (left != null && left <= 6 * 60000) out.push(F("do", "Safety car near the stint end: pit now", "With " + fmtClock(left / 1000) + " left in the stint, a stop under the slow laps costs a fraction of the usual " + (+m.pitLoss || 60) + " s. Next driver to the kart immediately, board IN this lap. Check the marshal accepts an early rotation."));
+    else if (left != null) out.push(F("warn", "Safety car with " + fmtClock(left / 1000) + " left", "Too early to pit unless short stints are allowed. Use the slow laps to prep the next driver and ballast so the normal-time swap is the fastest in the lane."));
+    else out.push(F("warn", "Safety car logged", "If the stint is inside its last 6 minutes, pit under it; otherwise prep the swap and hold position."));
+  }
+  if (recent.find(function(e){ return e.kind === "penalty"; })) out.push(F("warn", "Penalty logged", "Serve it at the next scheduled stop so it overlaps the rotation. Re-set the target: the driver must not try to buy the time back on track, that is how the next penalty happens."));
+  if (recent.find(function(e){ return e.kind === "weather"; })) out.push(F("warn", "Weather change", "Rain on a rental kart: lift the target by 8–10%, brake earlier and straighter, stay off painted kerbs. If it turns fully wet, the steadier driver (" + steadiest(r, dm) + ") takes the next stint even if it breaks the alternation, provided the driver-change rule allows a double."));
+  if (recent.find(function(e){ return e.kind === "incident"; })) out.push(F("warn", "Incident logged", "Slow or damaged kart: that is what the swap is for. Don't push it, note the kart number, pit at the normal time. Driver hurt or unwell: the other driver double-stints" + (m.driverChange === "yes" ? " only if the marshal waives the driver-change rule; ask before the stop" : "") + "."));
+  if (rs.live){
+    var st = r.stints[rs.stint - 1], d = st && (st.d || r.plan[rs.stint - 1].d), x = d && dm[d];
+    var tgt = parseLap(m.targetLap) || (x && x.best ? x.best * 1.01 : null);
+    if (st && st.laps.length >= 3 && tgt){ var last3 = mean(st.laps.slice(-3)), dv = (last3 - tgt) / 1000;
+      out.push(F(dv > 0.5 ? "warn" : "info", "Stint " + rs.stint + " pace", first(driverById(r, d).name) + ": last 3 laps " + fmtLap(last3) + ", " + (dv > 0 ? "+" : "") + dv.toFixed(2) + " s vs target" + (dv > 0.5 ? ". Board a push signal; if it stays slow it's the kart, note the number." : ". On target, keep it there.")));
+    }
+    var nxt = r.plan[rs.stint] && driverById(r, r.plan[rs.stint].d);
+    if (left != null && rs.stint < r.plan.length) out.push(F(left <= 5 * 60000 ? "do" : "info", "Next stop in " + fmtClock(left / 1000), (nxt ? first(nxt.name) + " is next" : "Next driver") + (nxt && dm[nxt.id] && dm[nxt.id].ballast ? " with " + dm[nxt.id].ballast.toFixed(0) + " kg of ballast" : "") + ". " + (left <= 5 * 60000 ? "Suit up and stand at the swap point now." : "Be ready at the 5:00 board.")));
+    if (left != null && rs.stint === r.plan.length) out.push(F("info", "Final stint", fmtClock(left / 1000) + " to the flag. No more stops: it's about holding position and not collecting a penalty."));
+  } else if (rs.pre != null) out.push(F("info", "Before the green flag", "T-" + fmtHMS(rs.pre) + ". Confirm the stint order on Plan, stage the ballast, and agree who boards."));
+  else if (rs.done) out.push(F("info", "Race over", "Enter the finish position and the debrief below."));
+  if (!out.length) out.push(F("info", "Nothing to call yet", "Log flags and incidents here and the calls appear. Set the date and green-flag time in Setup so the stint clock runs."));
+  return out;
+}
+function renderFindings(list){ return list.map(function(f){ return '<div class="finding f-' + f.kind + '"><b>' + f.title + '</b><div>' + f.body + '</div></div>'; }).join(""); }
+function paneFindings(){
+  var r = cur();
+  return '<h2>Findings</h2>' + info("What the data says to do. It updates as you add session laps, positions, kart numbers and log entries.") + renderFindings(strategyFindings(r));
+}
+
+/* ---------- SESSION BESTS (inside the Sessions box) ---------- */
 function paneSessionBests(){
   var r = cur(), laps = allLaps(r);
   /* sessions comparison always available */
@@ -1417,7 +1584,7 @@ function paneSessionBests(){
     });
     sessBlock += '</tbody></table></div>';
   }
-  return '<h2>Session bests</h2>' + (sessBlock || '<p class="hint">Best lap per driver in every session, next to their race best, once session times are logged.</p>');
+  return '<h3 class="sub">Session bests</h3>' + (sessBlock || '<p class="hint">Best lap per driver in every session, next to their race best, once times are logged.</p>');
 }
 
 /* ---------- SERIES (championship points) ---------- */
@@ -1473,7 +1640,7 @@ function paneSeries(){
 
 /* ---------- render + events ---------- */
 window.paneSetup = paneSetup; window.paneStrategy = paneStrategy; window.paneSessions = paneSessions; window.paneRace = paneRace;
-window.paneMap = paneMap; window.paneRaceLog = paneRaceLog; window.paneSessionBests = paneSessionBests; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
+window.paneMap = paneMap; window.paneRaceLog = paneRaceLog; window.paneSessionBests = paneSessionBests; window.paneFindings = paneFindings; window.paneTiming = paneTiming; window.paneRivals = paneRivals; window.paneAnalysis = paneAnalysis; window.paneSeries = paneSeries;
 /* every <h2> starts a new floating card; anything before the first h2 gets its own */
 function cardify(html){
   var tmp = document.createElement("div"); tmp.innerHTML = html;
@@ -1495,6 +1662,7 @@ function cardify(html){
   return out.innerHTML;
 }
 function render(){
+  lastLiveRender = Date.now();
   renderHeader(); renderTabs();
   var pane = document.getElementById("pane");
   var home = tab === "home";
@@ -1638,6 +1806,13 @@ paneEl.addEventListener("click", function(e){
   }
   else if ((a = t.getAttribute("data-adjdel"))){ seriesCfg(serName).adj.splice(+a, 1); render(); }
   else if (t.id === "logAdd") addLog();
+  else if ((a = t.getAttribute("data-quick"))){
+    var rsQ = raceState(r), kq = rsQ.live && r.stints[rsQ.stint - 1] ? r.stints[rsQ.stint - 1].kart : "";
+    var noteQ = {sc:"Safety car", green:"Green flag", penalty:"Penalty", weather:"Rain starting", incident:"Slow kart" + (kq ? " #" + kq : "")}[a] || "";
+    r.log.push({t:nowClock(), kind:a, note:noteQ}); render();
+  }
+  else if (t.id === "applyRec"){ var recP = recommendedPlan(r, driverModel(r)); recP.forEach(function(id, i){ r.plan[i].d = id; }); render(); }
+  else if (t.id === "applyTgt"){ r.meta.targetLap = t.getAttribute("data-tgt"); render(); }
   else if (t.id === "feedStart") feedStart();
   else if (t.id === "feedStop"){ feedStop(); render(); }
   else if (t.id === "feedOnce"){ feedStop(); feedState.raceId = store.currentId; feedPoll(); }
@@ -1753,6 +1928,7 @@ setInterval(function(){
     }
   }
   if (tab !== "race") return;
+  if (Date.now() - lastLiveRender > 30000 && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "") && !sw.running){ lastLiveRender = Date.now(); render(); }
   var face = document.getElementById("cdFace"), pr = document.getElementById("cdPrompt");
   if (face && cd.running){
     var remS = (cd.endAt - Date.now()) / 1000, via = cur().meta.radios === "yes" ? "RADIO" : "BOARD";

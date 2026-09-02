@@ -17,6 +17,14 @@ in place.
 - **Simple by default**: each box opens with a one-line explanation and only
   the essential fields; specialist settings and the timing-import tools sit
   under an Advanced toggle that remembers whether you opened it.
+- **Strategy engine** (tuned for fixed-stint kart endurance with kart
+  rotation): ranks drivers from session and race laps, recommends the stint
+  order with the reasoning and a one-tap apply, sets target laps, works out
+  ballast per driver, explains the pit windows and what each stop costs, ranks
+  karts by pace so you know which to refuse and which to chase for the last
+  stint, tracks where places are gained and lost by driver, reads gaps and
+  catch rates from the timing feed, and on the Race page gives live calls for
+  safety cars, penalties, rain, slow karts, off-target pace and the next stop.
 - **Four phases**: Setup, Plan (strategy and sessions), Race (stints and
   timers, map, live timing, rivals), Review (analysis and series). A rail on
   the left of each page lists its windows and jumps to them; a window's title
