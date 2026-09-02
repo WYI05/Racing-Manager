@@ -92,11 +92,12 @@
 
   /* Deck: windows tiled across the width */
   #deck{margin:12px 0 26px}
-  section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:2px;align-items:stretch}
+  /* column packing: windows stack under one another so short ones leave no hole; wide windows span every column */
+  section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;columns:440px;column-gap:2px;column-fill:balance}
   /* Windows: glass panel with a compact title bar; click the bar to roll it up */
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0;min-width:0;box-shadow:none}
-  .card.wide{grid-column:1/-1}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0 0 2px;min-width:0;box-shadow:none;
+    break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+  .card.wide{column-span:all;-webkit-column-span:all}
   .zone{display:none}
   .card h3.sub{font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 6px}
   .card h2{display:flex;align-items:center;gap:8px;margin:0 -10px 10px !important;padding:4px 10px;border:0;border-bottom:1px solid var(--line);
