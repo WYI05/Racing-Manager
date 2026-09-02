@@ -37,6 +37,13 @@ in place.
   pit-board or radio prompts, a lap stopwatch with a SECTOR button, a
   timestamped race log (flags, safety car, pit, penalty, incident, weather),
   and the result with finish position, fastest-lap and pole holder, debrief.
+- **Timing**: live timing feed import. Poll a JSON or CSV endpoint (positions
+  for you and every rival land in the current stint, your last lap is appended
+  whenever your lap count rises, unknown entries become rivals), paste any
+  live-timing classification table (tab, comma, or space aligned, with or
+  without a header) and apply it once, or import a lap file (Speedhive /
+  MYLAPS, Apex, RaceChrono, any CSV, or a plain list of times, with sector
+  columns) into a stint or a session.
 - **Map**: race-progress ring with proportional stint arcs, timing tower from
   rival positions, pit-window timeline, live clock and NOW cursor.
 - **Rivals**: competitor entries with number, class, per-stint positions and

@@ -163,6 +163,7 @@
   .plan-cell:hover{background:var(--chip-grad-hover)}
   .pc-n,.pc-t{font-family:var(--mono);font-size:10px;letter-spacing:.08em}
   .pc-who{font-size:14px;font-weight:700;letter-spacing:.01em;line-height:1.3}
+  #pasteBox{width:100%;box-sizing:border-box}
   .lap-chip .secs{font-size:10px;color:var(--ink-faint);letter-spacing:.02em}
   .plan-lens{margin-top:6px}
   .plan-lens input{max-width:none;width:100%;text-align:center;font-family:var(--mono)}
@@ -207,19 +208,13 @@
   #bgStage{position:fixed;inset:0;z-index:0;pointer-events:none}
   #bgStage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;
     filter:blur(1.6px) saturate(1.04);transform:scale(1.02)}
-  #feedMon{position:fixed;right:14px;bottom:36px;z-index:5;width:224px;border-radius:5px;border:1px solid #262c35;
+  #feedMon{position:fixed;right:14px;bottom:14px;z-index:5;width:224px;border-radius:5px;border:1px solid #262c35;
     background:#10141b;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.45)}
   .fm-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:linear-gradient(180deg,#161b23,#10141a);border-bottom:1px solid #262c35;
     font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#aeb8c4}
   .fm-sq{width:8px;height:8px;background:var(--accent);flex:none}
   #feedMon img{display:block;width:100%;height:124px;object-fit:cover}
   @media (max-width:820px){#feedMon{display:none !important}}
-  #statusBar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:18px;align-items:center;padding:5px 14px;
-    background:linear-gradient(180deg,#12161d,#0c0f15);border-top:1px solid #262c35;
-    font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:#7f8b96;white-space:nowrap;overflow:hidden}
-  #statusBar .sb-spacer{flex:1}
-  #statusBar .sb-live{color:#41d98d}
-  #statusBar span{text-overflow:ellipsis;overflow:hidden}
   .wrap{position:relative;z-index:1}
   .wrap header,.wrap footer{text-shadow:0 1px 10px rgba(0,0,0,.55)}
   #heroStage .hs-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,13,18,.55),rgba(10,13,18,.25) 40%,rgba(10,13,18,.6))}
@@ -257,7 +252,6 @@
 <body>
 <div id="bgStage" aria-hidden="true"><canvas id="bgCanvas"></canvas></div>
 <div id="feedMon" hidden><div class="fm-bar"><span class="fm-sq"></span><span id="feedLabel">LIVE</span></div><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
-<div id="statusBar"><span id="sbRace"></span><span id="sbInfo"></span><span class="sb-spacer"></span><span class="sb-live">&#9679; LIVE</span><span id="sbClock" class="mono"></span></div>
 <div class="wrap">
 
 <header>
@@ -403,6 +397,7 @@ function normalize(r){
   if (!r.sessions.length) r.sessions.push({id:uid(), type:"quali", name:"Qualifying", cond:"", notes:"", times:{}});
   r.sessions.forEach(function(s){ s.times = s.times || {}; s.secs = s.secs || {}; Object.keys(s.times).forEach(function(d){ s.secs[d] = alignSecs(s.times[d], s.secs[d]); }); if (s.cond == null) s.cond = ""; if (s.notes == null) s.notes = ""; if (!s.id) s.id = uid(); });
   r.log = r.log || []; r.checklist = r.checklist || [];
+  r.feed = r.feed || {url:"", every:10, autoAdd:true, stint:"auto", lapsSeen:null};
   r.result = r.result || {pos:"", laps:"", notes:""};
   if (r.result.fl == null) r.result.fl = ""; if (r.result.pole == null) r.result.pole = "";
   m.sectors = Math.max(1, Math.min(10, +m.sectors || 1));
@@ -590,7 +585,7 @@ var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0, splits:[] };  // stopwatch
 var serName = "";                                        // series shown in the Series tab
 var cd = { running:false, endAt:0, stint:0 };           // countdown
-var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"],["series","Series"]];
+var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["timing","Timing"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"],["series","Series"]];
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -954,6 +949,191 @@ function teamPick(label, key, r){
     return '<option value="' + esc(n) + '"' + (r.result[key] === n ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>';
 }
 
+/* ---------- TIMING: live feed polling, pasted timing screens, lap-file import ---------- */
+var feedState = { timer:null, rows:[], at:null, err:"", raceId:null, applied:0 };
+var COL_MAP = [
+  ["pos",  /^(pos|p|position|rank|rk|cl|clas|#pos)$/i],
+  ["no",   /^(no|no\.|num|number|kart|kart#|car|car#|bike|#|nr)$/i],
+  ["name", /(name|team|driver|entry|pilot|competitor|rider)/i],
+  ["laps", /^(laps|lap|l|tours)$/i],
+  ["last", /(last|lastlap|last lap|lap time|laptime|time)/i],
+  ["best", /(best|fastest|bl|fast lap|best lap)/i],
+  ["gap",  /^(gap|behind|diff to leader)$/i],
+  ["int",  /^(int|interval|diff|dif)$/i]
+];
+function colKey(h){ h = String(h || "").trim(); for (var i = 0; i < COL_MAP.length; i++) if (COL_MAP[i][1].test(h)) return COL_MAP[i][0]; return null; }
+function isLapStr(v){ return parseLap(String(v || "").trim()) != null; }
+function splitRow(line, delim){
+  if (delim === "csv"){ var out = [], cur_ = "", q = false; for (var i = 0; i < line.length; i++){ var c = line[i]; if (c === '"'){ q = !q; } else if (c === "," && !q){ out.push(cur_); cur_ = ""; } else cur_ += c; } out.push(cur_); return out.map(function(x){ return x.trim(); }); }
+  if (delim === "tab") return line.split("\t").map(function(x){ return x.trim(); });
+  if (delim === "semi") return line.split(";").map(function(x){ return x.trim(); });
+  return line.trim().split(/\s{2,}/);
+}
+/* Any timing table as text (CSV, TSV, ; separated, or a pasted screen with 2+ spaces between columns) → rows */
+function parseTable(text){
+  var lines = String(text || "").split(/\r?\n/).map(function(l){ return l.replace(/ /g, " "); }).filter(function(l){ return l.trim(); });
+  if (!lines.length) return [];
+  var head = lines[0];
+  var delim = head.indexOf("\t") >= 0 ? "tab" : (head.split(",").length >= 3 ? "csv" : head.split(";").length >= 3 ? "semi" : "space");
+  var cells = lines.map(function(l){ return splitRow(l, delim); });
+  if (delim === "space" && cells.every(function(c){ return c.length < 3; })) cells = lines.map(function(l){ return l.trim().split(/\s+/); });
+  var hdr = cells[0].map(colKey), hasHdr = hdr.filter(Boolean).length >= 2;
+  var body = hasHdr ? cells.slice(1) : cells;
+  var intKeys = hasHdr ? ["pos","no","laps"].filter(function(k){ return hdr.indexOf(k) >= 0; }) : ["pos","no","laps"];
+  var lapKeys = hasHdr ? ["last","best"].filter(function(k){ return hdr.indexOf(k) >= 0; }) : ["last","best"];
+  return body.map(function(c, ri){
+    var row = {pos:null, no:"", name:"", laps:null, last:"", best:"", gap:"", int:""};
+    if (delim === "space"){
+      /* space-aligned screens: names may contain single spaces, so classify tokens instead of trusting column boundaries */
+      var toks = lines[hasHdr ? ri + 1 : ri].trim().split(/\s+/), ints = [], lapsL = [], gaps = [], nameT = [];
+      toks.forEach(function(v){
+        if (/^[+-]?\d+(?:\.\d+)?s?$/.test(v) && (v[0] === "+" || v[0] === "-")) gaps.push(v);
+        else if (/^#?\d{1,3}[a-z]?$/i.test(v)) ints.push(v.replace(/^#/, ""));
+        else if (isLapStr(v)) lapsL.push(v);
+        else if (/lap/i.test(v) && gaps.length) gaps[gaps.length - 1] += " " + v;
+        else nameT.push(v);
+      });
+      intKeys.forEach(function(k, i){ if (ints[i] != null) row[k] = k === "no" ? ints[i] : parseInt(ints[i], 10); });
+      lapKeys.forEach(function(k, i){ if (lapsL[i]) row[k] = lapsL[i]; });
+      row.name = nameT.join(" "); row.gap = gaps[0] || ""; row.int = gaps[1] || "";
+    } else if (hasHdr){
+      c.forEach(function(v, i){ var k = hdr[i]; if (!k) return; if (k === "pos" || k === "laps"){ var n = parseInt(v, 10); if (!isNaN(n)) row[k] = n; } else if (!row[k]) row[k] = v; });
+    } else {
+      /* delimited but no header: ints → pos, no, laps; lap-looking → last, best; +gaps; the longest remaining text → name */
+      var ints2 = [], laps_ = [], texts = [], gaps2 = [];
+      c.forEach(function(v){ if (/^[+-]/.test(v)) gaps2.push(v); else if (/^#?\d{1,3}[a-z]?$/i.test(v)) ints2.push(v.replace(/^#/, "")); else if (isLapStr(v)) laps_.push(v); else if (v) texts.push(v); });
+      row.pos = ints2[0] != null ? parseInt(ints2[0], 10) : null; row.no = ints2[1] != null ? ints2[1] : ""; row.laps = ints2[2] != null ? parseInt(ints2[2], 10) : null;
+      row.last = laps_[0] || ""; row.best = laps_[1] || ""; row.gap = gaps2[0] || ""; row.int = gaps2[1] || "";
+      texts.sort(function(a, b){ return b.length - a.length; }); row.name = texts[0] || "";
+    }
+    return row;
+  }).filter(function(r){ return r.name || r.no || r.pos != null; });
+}
+function parseFeed(text){
+  var t = String(text || "").trim();
+  if (t[0] === "{" || t[0] === "["){
+    var obj = JSON.parse(t), arr = Array.isArray(obj) ? obj : (obj.entries || obj.rows || obj.results || obj.data || obj.classification || []);
+    return arr.map(function(o){
+      var row = {pos:null, no:"", name:"", laps:null, last:"", best:"", gap:"", int:""};
+      Object.keys(o).forEach(function(k){ var ck = colKey(k); if (!ck) return; var v = o[k]; if (ck === "pos" || ck === "laps"){ var n = parseInt(v, 10); if (!isNaN(n)) row[ck] = n; } else if (!row[ck] && v != null) row[ck] = String(v); });
+      return row;
+    }).filter(function(r){ return r.name || r.no || r.pos != null; });
+  }
+  return parseTable(t);
+}
+function feedStint(r){
+  if (r.feed.stint !== "auto") return Math.min(r.plan.length - 1, +r.feed.stint || 0);
+  var rs = raceState(r); if (rs.live) return rs.stint - 1;
+  for (var i = r.stints.length - 1; i >= 0; i--) if (r.stints[i].laps.length || r.stints[i].d) return i;
+  return 0;
+}
+function isUsRow(r, row){
+  var m = r.meta;
+  if (m.carNo && row.no && String(row.no).replace(/^#/, "") === String(m.carNo).replace(/^#/, "")) return true;
+  return !!teamKey(row.name) && teamKey(row.name) === teamKey(m.name);
+}
+function applyFeed(r, rows){
+  var si = feedStint(r), changed = 0;
+  rows.forEach(function(row){
+    if (isUsRow(r, row)){
+      if (row.pos != null){ r.ourPos[si] = String(row.pos); changed++; }
+      if (row.laps != null && row.last && isLapStr(row.last)){
+        if (r.feed.lapsSeen != null && row.laps > r.feed.lapsSeen){ var st = r.stints[si]; st.laps.push(parseLap(row.last)); st.secs = alignSecs(st.laps, st.secs); changed++; }
+        r.feed.lapsSeen = row.laps;
+      }
+      return;
+    }
+    var rv = r.rivals.find(function(x){ return (x.no && row.no && String(x.no) === String(row.no)) || (teamKey(x.name) && teamKey(x.name) === teamKey(row.name)); });
+    if (!rv && r.feed.autoAdd && row.name){ rv = {name:row.name, no:row.no || "", cls:"", fin:"", pos:[]}; r.rivals.push(rv); normalize(r); changed++; }
+    if (rv && row.pos != null){ rv.pos[si] = String(row.pos); if (!rv.no && row.no) rv.no = row.no; changed++; }
+  });
+  return changed;
+}
+function feedPoll(){
+  var r = cur(); if (!r.feed.url){ feedStop(); return; }
+  fetch(r.feed.url, {cache:"no-store"}).then(function(res){ if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
+    .then(function(txt){
+      var rows = parseFeed(txt);
+      feedState.rows = rows; feedState.at = nowClock(); feedState.err = rows.length ? "" : "Fetched, but no timing rows recognised.";
+      feedState.applied = applyFeed(r, rows); save();
+      if (tab === "timing" || tab === "map" || tab === "rivals") render();
+    })
+    .catch(function(e){ feedState.err = String(e.message || e) + " — if the URL opens in a browser tab, the server is blocking cross-site reads (CORS); use the paste box instead."; if (tab === "timing") render(); });
+}
+function feedStart(){
+  feedStop(); var r = cur(); if (!r.feed.url) return;
+  feedState.raceId = store.currentId; feedState.err = "";
+  feedPoll(); feedState.timer = setInterval(feedPoll, Math.max(3, +r.feed.every || 10) * 1000);
+}
+function feedStop(){ if (feedState.timer){ clearInterval(feedState.timer); feedState.timer = null; } }
+function paneTiming(){
+  var r = cur(), f = r.feed, live = !!feedState.timer && feedState.raceId === store.currentId;
+  var h = '<h2>Live timing feed</h2><p class="hint">Point this at a JSON or CSV timing endpoint and Pitwall polls it, matching entries to your team by ' + (r.meta.carNo ? 'number <span class="mono">' + esc(r.meta.carNo) + '</span> or ' : '') + 'name <span class="mono">' + esc(r.meta.name || "—") + '</span>. Each poll writes positions into the current stint for you and every rival, and appends your last lap whenever your lap count goes up.</p>';
+  h += '<div class="grid2" style="margin-top:12px">'
+    + '<div class="field" style="grid-column:1/-1"><label>Feed URL</label><input type="url" value="' + esc(f.url) + '" data-feed="url" placeholder="https://…/live.json or …/classification.csv"></div>'
+    + '<div class="field"><label>Poll every (s)</label><input type="number" min="3" value="' + esc(f.every) + '" data-feed="every"></div>'
+    + '<div class="field"><label>Write positions to</label><select data-feed="stint"><option value="auto"' + (f.stint === "auto" ? " selected" : "") + '>Auto (live stint)</option>' + r.plan.map(function(p, i){ return '<option value="' + i + '"' + (String(f.stint) === String(i) ? " selected" : "") + '>S' + (i+1) + '</option>'; }).join("") + '</select></div>'
+    + '<div class="field"><label>Unknown entries</label><select data-feed="autoAdd"><option value="1"' + (f.autoAdd ? " selected" : "") + '>Add as rivals</option><option value="0"' + (!f.autoAdd ? " selected" : "") + '>Ignore</option></select></div>'
+    + '</div><div class="btn-row" style="margin-top:12px">'
+    + (live ? '<button class="danger mini" id="feedStop">Stop feed</button>' : '<button class="primary mini" id="feedStart"' + (f.url ? "" : " disabled") + '>Start feed</button>')
+    + '<button class="mini" id="feedOnce"' + (f.url ? "" : " disabled") + '>Fetch once</button>'
+    + (feedState.at ? '<span class="pill">last ' + feedState.at + ' · ' + feedState.rows.length + ' entries · ' + feedState.applied + ' updates</span>' : "")
+    + (live ? '<span class="pill" style="color:var(--green)">● polling every ' + f.every + 's</span>' : "")
+    + '</div>' + (feedState.err ? '<div class="plan-warn">' + esc(feedState.err) + '</div>' : "");
+  h += '<div class="callout">Accepted shapes: JSON <span class="mono">{"entries":[{"pos":1,"no":"12","name":"Apex","laps":42,"last":"51.234","best":"50.981","gap":""}]}</span> (or a bare array), and CSV / TSV with a header row using any of pos · no/kart/car · name/team · laps · last · best · gap · int. Column names are matched loosely. The server must allow cross-site reads; most public live-timing pages don’t, which is what the paste box below is for.</div>';
+
+  h += h2("Paste a timing screen") + '<p class="hint">Select the classification table on any live-timing page, copy, paste here, and apply. Works with tab-separated, comma-separated, or space-aligned tables, with or without a header row.</p>'
+    + '<textarea id="pasteBox" placeholder="POS  NO  TEAM            LAPS  LAST     BEST     GAP\n1    12  Apex Assassins  42    51.234   50.981\n2    7   ' + esc(r.meta.name || "Us") + '        42    51.410   51.002   +3.2" style="min-height:120px;font-family:var(--mono);font-size:12px"></textarea>'
+    + '<div class="btn-row" style="margin-top:8px"><button class="mini" id="pastePreview">Preview</button><button class="primary mini" id="pasteApply">Apply to race</button></div>';
+
+  if (feedState.rows.length){
+    h += h2("Parsed timing · " + feedState.rows.length + " entries") + '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>#</th><th>Entry</th><th>Laps</th><th>Last</th><th>Best</th><th>Gap</th><th>Int</th><th>Match</th></tr></thead><tbody>';
+    feedState.rows.forEach(function(row){
+      var us = isUsRow(r, row), rv = !us && r.rivals.find(function(x){ return (x.no && row.no && String(x.no) === String(row.no)) || (teamKey(x.name) && teamKey(x.name) === teamKey(row.name)); });
+      h += '<tr' + (us ? ' style="background:rgba(244,157,112,.07)"' : "") + '><td class="mono">' + (row.pos != null ? row.pos : "") + '</td><td class="mono">' + esc(row.no) + '</td><td>' + esc(row.name) + '</td><td class="mono">' + (row.laps != null ? row.laps : "") + '</td><td class="mono">' + esc(row.last) + '</td><td class="mono best">' + esc(row.best) + '</td><td class="mono">' + esc(row.gap) + '</td><td class="mono">' + esc(row.int) + '</td>'
+        + '<td>' + (us ? '<span class="pill" style="color:var(--accent)">us</span>' : rv ? '<span class="pill">rival</span>' : '<span class="pill" style="color:var(--ink-faint)">' + (f.autoAdd ? "new rival" : "ignored") + '</span>') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
+  h += h2("Import a lap file") + '<p class="hint">Timing exports (Speedhive / MYLAPS, Apex, RaceChrono, or any CSV): one lap per row with a lap-time column and optional sector columns. Lines that are just a lap time work too. Choose where the laps go.</p>'
+    + '<div class="btn-row" style="margin-top:8px"><select id="lapTarget">'
+    + r.stints.map(function(s, i){ return '<option value="stint:' + i + '">Race · S' + (i+1) + (s.d && driverById(r, s.d) ? " · " + esc(first(driverById(r, s.d).name)) : "") + '</option>'; }).join("")
+    + r.sessions.map(function(s){ return r.drivers.map(function(d){ return '<option value="sess:' + s.id + ':' + d.id + '">' + esc(s.name || s.type) + ' · ' + esc(first(d.name)) + '</option>'; }).join(""); }).join("")
+    + '</select><input type="file" id="lapFile" accept=".csv,.txt,.tsv,text/csv,text/plain" style="max-width:260px"><button class="primary mini" id="lapImport">Import</button></div>'
+    + '<div id="lapImportMsg" class="plan-warn ok"></div>';
+  return h;
+}
+/* lap file → [{ms, secs}] */
+function parseLapFile(text, nSec){
+  var lines = String(text || "").split(/\r?\n/).filter(function(l){ return l.trim(); }); if (!lines.length) return [];
+  var delim = lines[0].indexOf("\t") >= 0 ? "tab" : lines[0].indexOf(",") >= 0 ? "csv" : lines[0].indexOf(";") >= 0 ? "semi" : "space";
+  var cells = lines.map(function(l){ return splitRow(l, delim); });
+  if (delim === "space") cells = lines.map(function(l){ return l.trim().split(/\s+/); });
+  var hdr = cells[0].map(function(h){ return String(h).trim().toLowerCase(); });
+  var ti = hdr.findIndex(function(h){ return /lap ?time|laptime|^time$|^t$|^lap ?\(|^lap ?\[/.test(h); });
+  if (ti < 0){ var li = hdr.findIndex(function(h){ return /^lap$/.test(h); }); if (li >= 0 && cells.slice(1).some(function(c){ return /[.:]/.test(c[li] || ""); })) ti = li; }
+  var si = hdr.map(function(h, i){ return /^(s|sec|sector|split) ?\d+$/.test(h) ? i : -1; }).filter(function(i){ return i >= 0; });
+  var hasHdr = ti >= 0 || si.length;
+  var out = [];
+  (hasHdr ? cells.slice(1) : cells).forEach(function(c){
+    var ms = null, secs = null;
+    if (ti >= 0) ms = parseLap(c[ti]);
+    if (si.length){ var sv = si.map(function(i){ return parseLap(c[i]); }); if (sv.every(function(v){ return v != null; }) && (!nSec || sv.length === nSec)){ secs = sv; if (ms == null) ms = sv.reduce(function(a, b){ return a + b; }, 0); } }
+    if (ms == null && !hasHdr){ var lapish = c.filter(isLapStr); if (lapish.length === 1) ms = parseLap(lapish[0]); else if (nSec && lapish.length === nSec){ secs = lapish.map(parseLap); ms = secs.reduce(function(a, b){ return a + b; }, 0); } else if (lapish.length) ms = parseLap(lapish[lapish.length - 1]); }
+    if (ms) out.push({ms:ms, secs:secs});
+  });
+  return out;
+}
+function importLaps(text){
+  var r = cur(), laps = parseLapFile(text, nSect(r)), tgt = document.getElementById("lapTarget").value.split(":"), msg = document.getElementById("lapImportMsg");
+  if (!laps.length){ msg.className = "plan-warn"; msg.textContent = "No lap times found in that file."; return; }
+  if (tgt[0] === "stint"){ var st = r.stints[+tgt[1]]; laps.forEach(function(l){ st.laps.push(l.ms); st.secs = alignSecs(st.laps, st.secs); st.secs[st.laps.length - 1] = l.secs; }); }
+  else { var s = sessById(r, tgt[1]); if (!s) return; s.times[tgt[2]] = s.times[tgt[2]] || []; laps.forEach(function(l){ s.times[tgt[2]].push(l.ms); s.secs[tgt[2]] = alignSecs(s.times[tgt[2]], s.secs[tgt[2]]); s.secs[tgt[2]][s.times[tgt[2]].length - 1] = l.secs; }); }
+  save(); render();
+  var m2 = document.getElementById("lapImportMsg"); if (m2){ m2.className = "plan-warn ok"; m2.textContent = "Imported " + laps.length + " laps" + (laps.some(function(l){ return l.secs; }) ? " with sector splits" : "") + "."; }
+}
+
 /* ---------- MAP (circle viewer + pit window) ---------- */
 function raceStart(r){
   if (!r.meta.date || !r.meta.green) return null;
@@ -1292,11 +1472,12 @@ function render(){
     : tab === "strategy" ? paneStrategy()
     : tab === "sessions" ? paneSessions()
     : tab === "race" ? paneRace()
+    : tab === "timing" ? paneTiming()
     : tab === "map" ? paneMap()
     : tab === "rivals" ? paneRivals()
     : tab === "series" ? paneSeries()
     : paneAnalysis();
-  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
+  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", timing:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
   var feed = document.getElementById("feedMon");
   if (home){
     feed.hidden = true;
@@ -1308,9 +1489,6 @@ function render(){
     if (GIF_PICK[bgKey] && fi.getAttribute("src") !== GIF_PICK[bgKey]) fi.src = GIF_PICK[bgKey];
     document.getElementById("feedLabel").textContent = "LIVE · " + bgKey.toUpperCase();
   }
-  var r0 = cur(), laps0 = allLaps(r0).length;
-  document.getElementById("sbRace").textContent = (r0.meta.event || "race").toUpperCase() + (r0.meta.track ? " · " + r0.meta.track.toUpperCase() : "") + (r0.meta.location ? " — " + r0.meta.location.toUpperCase() : "");
-  document.getElementById("sbInfo").textContent = formatSummary(r0) + " · " + r0.drivers.length + " DRIVERS · " + laps0 + " LAPS LOGGED";
   save();
 }
 
@@ -1319,7 +1497,7 @@ document.getElementById("tabs").addEventListener("click", function(e){
   tab = b.getAttribute("data-tab"); render();
 });
 document.getElementById("raceSel").addEventListener("change", function(e){
-  store.currentId = e.target.value; openStint = -1; stopTimers(); render();
+  store.currentId = e.target.value; openStint = -1; stopTimers(); feedStop(); feedState.rows = []; feedState.at = null; feedState.err = ""; render();
 });
 function doNewRace(){
   var id = uid(), src = cur();
@@ -1387,6 +1565,7 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-st"))) { r.stints[+a].tyres = t.value; save(); }
   else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; save(); }
   else if ((a = t.getAttribute("data-rvf"))) { r.rivals[+a].fin = t.value; save(); }
+  else if ((a = t.getAttribute("data-feed"))) { r.feed[a] = a === "every" ? Math.max(3, +t.value || 10) : a === "autoAdd" ? t.value === "1" : t.value; if (a === "url") r.feed.lapsSeen = null; render(); }
   else if ((a = t.getAttribute("data-ser"))) { var cfg = seriesCfg(serName); cfg[a] = a === "scheme" ? t.value : (t.value === "" ? 0 : +t.value); render(); }
   else if ((a = t.getAttribute("data-adjt"))) { seriesCfg(serName).adj[+a].team = t.value; render(); }
   else if ((a = t.getAttribute("data-adjp"))) { seriesCfg(serName).adj[+a].pts = +t.value || 0; render(); }
@@ -1442,6 +1621,21 @@ paneEl.addEventListener("click", function(e){
   }
   else if ((a = t.getAttribute("data-adjdel"))){ seriesCfg(serName).adj.splice(+a, 1); render(); }
   else if (t.id === "logAdd") addLog();
+  else if (t.id === "feedStart") feedStart();
+  else if (t.id === "feedStop"){ feedStop(); render(); }
+  else if (t.id === "feedOnce"){ feedStop(); feedState.raceId = store.currentId; feedPoll(); }
+  else if (t.id === "pastePreview" || t.id === "pasteApply"){
+    var txt = document.getElementById("pasteBox").value;
+    try { feedState.rows = parseFeed(txt); feedState.err = feedState.rows.length ? "" : "No timing rows recognised in the pasted text."; }
+    catch(err){ feedState.rows = []; feedState.err = "Could not parse: " + err.message; }
+    feedState.at = nowClock(); feedState.raceId = store.currentId;
+    feedState.applied = t.id === "pasteApply" && feedState.rows.length ? applyFeed(r, feedState.rows) : 0;
+    render(); var pb = document.getElementById("pasteBox"); if (pb) pb.value = txt;
+  }
+  else if (t.id === "lapImport"){
+    var lf = document.getElementById("lapFile"); if (!lf.files[0]){ document.getElementById("lapImportMsg").textContent = "Choose a file first."; return; }
+    var rdr = new FileReader(); rdr.onload = function(){ importLaps(rdr.result); }; rdr.readAsText(lf.files[0]);
+  }
   else if ((a = t.getAttribute("data-logdel"))){ r.log.splice(+a, 1); render(); }
   else if (t.id === "rivAdd"){
     var nm = document.getElementById("rivName").value.trim(); if (!nm) return;
@@ -1528,8 +1722,6 @@ function startCountdown(){
   render();
 }
 setInterval(function(){
-  var sc = document.getElementById("sbClock");
-  if (sc) sc.textContent = nowClock();
   if (tab === "map"){
     var rM = cur(), rsM = raceState(rM);
     var ckM = document.getElementById("cmvClock");
