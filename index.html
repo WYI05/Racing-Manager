@@ -105,18 +105,13 @@
   /* Windows: glass panel with a compact title bar; click the bar to roll it up */
   .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0;min-width:0;box-shadow:none}
   .card.wide{grid-column:1/-1}
-  .zone{grid-column:1/-1;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8b919a;
-    background:#0d1013;border:1px solid var(--line);padding:3px 10px;margin:0;box-shadow:inset 3px 0 0 var(--accent)}
-  .zone:not(:first-child){margin-top:6px}
+  .zone{display:none}
   .rail-zone{display:block;height:1px;margin:3px 6px;background:var(--line)}
   .card h3.sub{font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 6px}
   .card h2{display:flex;align-items:center;gap:8px;margin:0 -10px 10px !important;padding:4px 10px;border:0;border-bottom:1px solid var(--line);
-    background:var(--bar);border-radius:0;cursor:pointer;user-select:none;min-height:24px;
+    background:var(--bar);border-radius:0;min-height:24px;
     font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.01em;text-transform:none;color:#dfe3e8}
   .card h2::before{content:"";width:6px;height:6px;border-radius:1px;background:var(--accent);flex:none}
-  .card h2:hover{background:#21262d}
-  .card.min h2{border-bottom:0;margin-bottom:0 !important}
-  .card.min>:not(h2){display:none}
   .card.flash{box-shadow:inset 0 0 0 1px var(--accent)}
   @media (max-width:900px){#deck{grid-template-columns:1fr}#rail{display:none}}
   .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
@@ -1593,13 +1588,11 @@ paneEl.addEventListener("change", function(e){
 document.getElementById("rail").addEventListener("click", function(e){
   var b = e.target.closest("[data-win]"); if (!b) return;
   var w = document.getElementById(b.getAttribute("data-win")); if (!w) return;
-  w.classList.remove("min"); w.scrollIntoView({behavior:"smooth", block:"start"});
+  w.scrollIntoView({behavior:"smooth", block:"start"});
   Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function(x){ x.classList.toggle("on", x === b); });
   w.classList.add("flash"); setTimeout(function(){ w.classList.remove("flash"); }, 900);
 });
 paneEl.addEventListener("click", function(e){
-  var hb = e.target.closest(".card > h2");
-  if (hb){ hb.parentNode.classList.toggle("min"); return; }
   var t = e.target.closest("button"); if (!t) return;
   var r = cur(), a;
   if (t.id === "newRace") doNewRace();
