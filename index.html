@@ -163,6 +163,12 @@
   .plan-cell:hover{background:var(--chip-grad-hover)}
   .pc-n,.pc-t{font-family:var(--mono);font-size:10px;letter-spacing:.08em}
   .pc-who{font-size:14px;font-weight:700;letter-spacing:.01em;line-height:1.3}
+  .plan-lens{margin-top:6px}
+  .plan-lens input{max-width:none;width:100%;text-align:center;font-family:var(--mono)}
+  tr.ck-done td input[type=text]{text-decoration:line-through;opacity:.5}
+  input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+  .pill.flag-green{color:#41d98d}.pill.flag-yellow{color:#ffb000}.pill.flag-sc{color:#ffb000}.pill.flag-red{color:var(--red)}
+  .pill.flag-pit{color:#4fc3f7}.pill.flag-penalty{color:var(--red)}.pill.flag-incident{color:#ffb000}.pill.flag-weather{color:#4fc3f7}
   .plan-warn{font-family:var(--mono);font-size:12.5px;color:var(--accent-soft);margin-top:8px;min-height:1.3em}
   .plan-warn.ok{color:var(--green)}
 
@@ -288,6 +294,41 @@ var PAL = [
 ];
 var RIVAL_C = "#8a94a3";
 
+/* ---------- vocabulary: every race is described by these ---------- */
+var DISC = [["kart","Kart"],["car","Car"],["bike","Motorcycle"],["sim","Sim racing"],["other","Other"]];
+var RACE_TYPES = [["endurance","Endurance"],["sprint","Sprint"],["heats","Heats + final"],["tt","Time trial"]];
+var LEN_BASIS = [["time","Timed (minutes)"],["laps","Lap count"]];
+var STINT_MODES = [["fixed","Fixed stints · mandatory rotation"],["free","Free strategy · fuel / tyre / driver windows"],["none","No pit stops"]];
+var YESNO = [["yes","Yes"],["no","No"]];
+var SURFACES = [["dry","Dry"],["damp","Damp"],["wet","Wet"],["mixed","Changing"]];
+var LIGHTS = [["day","Day"],["dusk","Dusk"],["night","Night"],["mixed","Day into night"]];
+var DIRS = [["cw","Clockwise"],["ccw","Anti-clockwise"]];
+var LEN_UNITS = [["km","km"],["mi","mi"]];
+var TEMP_UNITS = [["C","°C"],["F","°F"]];
+var LOG_KINDS = [["green","GREEN"],["yellow","YELLOW"],["sc","SC / FCY"],["red","RED"],["pit","PIT"],["penalty","PENALTY"],["incident","INCIDENT"],["weather","WEATHER"],["note","NOTE"]];
+var SESSION_TYPES = [["practice","Practice"],["quali","Qualifying"],["warmup","Warm-up"],["heat","Heat"]];
+var VEH_LABEL = {kart:"Kart", car:"Car", bike:"Bike", sim:"Car", other:"Vehicle"};
+var TEMPLATES = [
+  ["kart",   "Kart endurance · fixed stints",   {discipline:"kart", raceType:"endurance", lenBasis:"time", duration:180, stintMode:"fixed", stints:9, stintMin:20, driverChange:"yes", vehicleSwap:"yes", radios:"no"}],
+  ["car",    "Car endurance · free strategy",   {discipline:"car", raceType:"endurance", lenBasis:"time", duration:360, stintMode:"free", stints:6, stintMin:60, minStops:5, driverChange:"yes", vehicleSwap:"no", radios:"yes"}],
+  ["sprint", "Sprint · no stops",               {discipline:"car", raceType:"sprint", lenBasis:"laps", raceLaps:20, stintMode:"none", radios:"yes"}],
+  ["bike",   "Motorcycle sprint",                    {discipline:"bike", raceType:"sprint", lenBasis:"laps", raceLaps:15, stintMode:"none", radios:"no"}],
+  ["sim",    "Sim endurance",                        {discipline:"sim", raceType:"endurance", lenBasis:"time", duration:120, stintMode:"free", stints:4, stintMin:30, radios:"yes"}],
+  ["heats",  "Heats + final",                        {discipline:"kart", raceType:"heats", lenBasis:"laps", raceLaps:12, stintMode:"none", radios:"no"}],
+  ["blank",  "Blank",                                {}]
+];
+var META_DEFAULTS = {
+  /* event */ name:"", event:"", series:"", round:"", carNo:"", cls:"", date:"", green:"", link:"", notes:"",
+  /* format */ discipline:"kart", raceType:"endurance", lenBasis:"time", duration:180, raceLaps:"", stintMode:"fixed", stints:9, stintMin:20,
+  minStops:"", minStintMin:"", maxStintMin:"", maxDriveCons:"", maxDriveTotal:"", driverChange:"yes", vehicleSwap:"no", radios:"no",
+  pitLoss:"", minPit:"", minWeight:"",
+  /* vehicle */ vehicle:"", fuelCap:"", fuelPerLap:"", tyreLife:"", tyreSets:"", vehicleNotes:"",
+  /* track */ track:"", location:"", trackLen:"", lenUnit:"km", layout:"", direction:"cw", turns:"", trackNotes:"",
+  /* conditions */ weather:"", air:"", trackTemp:"", tempUnit:"C", surface:"dry", wind:"", light:"day", condNotes:"",
+  /* targets */ targetLap:"", targetPos:"", stratNotes:"", grid:""
+};
+var FORMAT_KEYS = ["lenBasis","duration","raceLaps","stintMode","stints","stintMin"];
+
 /* ---------- storage ---------- */
 var KEY = "sable-rm-v1";
 var store = null;
@@ -300,36 +341,103 @@ function load(){
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){} }
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function cur(){ return store.races[store.currentId]; }
+function blankStint(){ return {d:"", kart:"", ps:"", pe:"", best:"", notes:"", laps:[], start:"", fuel:"", tyres:"", pit:""}; }
+function blankRace(tplMeta, from){
+  var r = { meta:{}, drivers:[], plan:[], sessions:[], stints:[], rivals:[], ourPos:[], log:[], checklist:[], result:{pos:"", laps:"", notes:""} };
+  Object.keys(META_DEFAULTS).forEach(function(k){ r.meta[k] = META_DEFAULTS[k]; });
+  Object.keys(tplMeta || {}).forEach(function(k){ r.meta[k] = tplMeta[k]; });
+  if (from){ r.meta.name = from.meta.name; r.drivers = from.drivers.map(function(d){ return {id:d.id, name:d.name, c:d.c, weight:d.weight, licence:d.licence, notes:d.notes}; }); }
+  return r;
+}
 
 function seed(){
-  var vegas = {
-    meta:{ name:"SABLE Motorsports", event:"Vegas 3H Endurance (SWS)", track:"Vegas Superkarts — Las Vegas, NV",
-      date:"2026-09-05", green:"19:00", stints:9, stintMin:20, link:"vegas-race-book.html",
-      notes:"Ref US-VEG-142967 · no radios (pit board only) · kart rotation every stint · ballast yes" },
-    drivers:[ {id:uid(), name:"William Yi", c:0}, {id:uid(), name:"Matthew Hergenroeder", c:1} ],
-    quali:{ times:{}, grid:"" },
-    stints:[], rivals:[], ourPos:[]
-  };
-  vegas.plan = [];
-  for (var i = 0; i < 9; i++) vegas.plan.push(vegas.drivers[i % 2].id);
+  var vegas = blankRace(TEMPLATES[0][2]);
+  var m = vegas.meta;
+  m.name = "SABLE Motorsports"; m.event = "Vegas 3H Endurance (SWS)"; m.series = "SWS Endurance Cup";
+  m.track = "Vegas Superkarts"; m.location = "Las Vegas, NV"; m.date = "2026-09-05"; m.green = "19:00";
+  m.vehicle = "Sodi RT10 GX270"; m.link = "vegas-race-book.html"; m.minWeight = "";
+  m.notes = "Ref US-VEG-142967 · no radios (pit board only) · kart rotation every stint · ballast yes";
+  vegas.drivers = [ {id:uid(), name:"William Yi", c:0}, {id:uid(), name:"Matthew Hergenroeder", c:1} ];
+  for (var i = 0; i < 9; i++) vegas.plan.push({d:vegas.drivers[i % 2].id, len:20});
   return { currentId:"vegas2026", races:{ vegas2026: vegas } };
 }
 function normalize(r){
-  r.meta.stints = Math.max(1, Math.min(40, +r.meta.stints || 9));
-  var n = r.meta.stints;
+  var m = r.meta = r.meta || {};
+  Object.keys(META_DEFAULTS).forEach(function(k){ if (m[k] == null) m[k] = META_DEFAULTS[k]; });
+  /* legacy fields from the first data model */
+  if (!m.location && /\s—\s/.test(m.track)){ var tp = m.track.split(/\s—\s/); m.track = tp[0]; m.location = tp.slice(1).join(" — "); }
+  if (m.duration === "" || m.duration == null) m.duration = (+m.stints || 9) * (+m.stintMin || 20);
+  m.stints = Math.max(1, Math.min(60, +m.stints || 1));
+  m.stintMin = Math.max(1, +m.stintMin || 20);
+  r.drivers = r.drivers || [];
+  r.drivers.forEach(function(d){ ["weight","licence","notes"].forEach(function(k){ if (d[k] == null) d[k] = ""; }); });
+
+  /* plan: [{d, len}] in race units (minutes or laps) */
+  r.plan = (r.plan || []).map(function(p){ return typeof p === "string" ? {d:p, len:m.stintMin} : {d:p.d || "", len:+p.len || m.stintMin}; });
+  if (m.stintMode === "fixed"){
+    r.plan = r.plan.slice(0, m.stints); while (r.plan.length < m.stints) r.plan.push({d:"", len:m.stintMin});
+    r.plan.forEach(function(p){ p.len = m.stintMin; });
+  } else if (m.stintMode === "none"){
+    r.plan = r.plan.slice(0, 1); if (!r.plan.length) r.plan.push({d:"", len:0});
+    r.plan[0].len = raceLen(r) || m.stintMin;
+  } else { if (!r.plan.length) r.plan.push({d:"", len:m.stintMin}); }
+  var n = r.plan.length;
+
   r.stints = r.stints || [];
-  while (r.stints.length < n) r.stints.push({d:"", kart:"", ps:"", pe:"", best:"", notes:"", laps:[]});
-  r.stints.length = n;
-  r.stints.forEach(function(s){ s.laps = s.laps || []; });
+  while (r.stints.length < n) r.stints.push(blankStint()); r.stints.length = n;
+  r.stints.forEach(function(s){ var b = blankStint(); Object.keys(b).forEach(function(k){ if (s[k] == null) s[k] = b[k]; }); });
   r.ourPos = (r.ourPos || []).slice(0, n); while (r.ourPos.length < n) r.ourPos.push("");
-  (r.rivals || []).forEach(function(rv){ rv.pos = (rv.pos || []).slice(0, n); while (rv.pos.length < n) rv.pos.push(""); });
   r.rivals = r.rivals || [];
-  r.quali = r.quali || {times:{}, grid:""};
-  r.quali.times = r.quali.times || {};
-  r.plan = (r.plan || []).slice(0, n); while (r.plan.length < n) r.plan.push("");
-  if (r.meta.targetLap == null) r.meta.targetLap = "";
-  if (r.meta.targetPos == null) r.meta.targetPos = "";
-  if (r.meta.stratNotes == null) r.meta.stratNotes = "";
+  r.rivals.forEach(function(rv){ rv.pos = (rv.pos || []).slice(0, n); while (rv.pos.length < n) rv.pos.push(""); if (rv.cls == null) rv.cls = ""; if (rv.no == null) rv.no = ""; });
+
+  /* sessions: practice / quali / warm-up / heats — migrates the old single quali block */
+  r.sessions = r.sessions || [];
+  if (r.quali){
+    if (r.quali.times && Object.keys(r.quali.times).length) r.sessions.push({id:uid(), type:"quali", name:"Qualifying", cond:"", notes:"", times:r.quali.times});
+    if (r.quali.grid && !m.grid) m.grid = r.quali.grid;
+    delete r.quali;
+  }
+  if (!r.sessions.length) r.sessions.push({id:uid(), type:"quali", name:"Qualifying", cond:"", notes:"", times:{}});
+  r.sessions.forEach(function(s){ s.times = s.times || {}; if (s.cond == null) s.cond = ""; if (s.notes == null) s.notes = ""; if (!s.id) s.id = uid(); });
+  r.log = r.log || []; r.checklist = r.checklist || [];
+  r.result = r.result || {pos:"", laps:"", notes:""};
+}
+
+/* ---------- race geometry: units, lengths, clocks ---------- */
+function isTime(r){ return r.meta.lenBasis !== "laps"; }
+function unitLbl(r){ return isTime(r) ? "min" : "laps"; }
+function raceLen(r){ return isTime(r) ? (+r.meta.duration || 0) : (+r.meta.raceLaps || 0); }
+function planTotal(r){ return r.plan.reduce(function(a, p){ return a + (+p.len || 0); }, 0); }
+function planStart(r, i){ var t = 0; for (var k = 0; k < i; k++) t += +r.plan[k].len || 0; return t; }
+function fmtMin(mn){ mn = Math.round(mn); return mn >= 60 ? Math.floor(mn/60) + "h" + String(mn % 60).padStart(2,"0") : mn + "′"; }
+function fmtUnits(r, u){ return isTime(r) ? fmtMin(u) : u + " laps"; }
+function lapEstMs(r){
+  var laps = allLaps(r).map(function(l){ return l.ms; }); if (laps.length) return mean(laps);
+  var t = parseLap(r.meta.targetLap); if (t) return t;
+  var sb = []; r.sessions.forEach(function(s){ Object.keys(s.times).forEach(function(d){ sb = sb.concat(s.times[d]); }); });
+  return sb.length ? Math.min.apply(null, sb) : null;
+}
+function unitsToMs(r, u){ if (isTime(r)) return u * 60000; var lm = lapEstMs(r); return lm ? u * lm : null; }
+function raceLapsEst(r){
+  if (!isTime(r)) return +r.meta.raceLaps || 0;
+  var lm = lapEstMs(r); return lm ? Math.floor(raceLen(r) * 60000 / lm) : 0;
+}
+function clockAt(green, minutes){
+  var p = green.split(":"), t = (+p[0]) * 60 + (+p[1] || 0) + Math.round(minutes);
+  var h = Math.floor(t/60) % 24, mn = t % 60, ampm = h >= 12 ? "PM" : "AM", hh = h % 12 || 12;
+  return hh + ":" + String(mn).padStart(2,"0") + " " + ampm;
+}
+function stintWindow(r, i){
+  var st = planStart(r, i), len = +r.plan[i].len || 0;
+  if (isTime(r)) return r.meta.green ? clockAt(r.meta.green, st) : fmtMin(st);
+  return "L" + (st + 1) + "–" + (st + len);
+}
+function vehLabel(r){ return VEH_LABEL[r.meta.discipline] || "Vehicle"; }
+function formatSummary(r){
+  var m = r.meta, u = isTime(r) ? fmtMin(raceLen(r)).toUpperCase() : raceLen(r) + " LAPS";
+  var st = m.stintMode === "fixed" ? m.stints + " × " + fmtUnits(r, m.stintMin).toUpperCase()
+    : m.stintMode === "free" ? (r.plan.length - 1) + " STOPS PLANNED" : "NO STOPS";
+  return u + " · " + st;
 }
 
 /* ---------- time helpers ---------- */
@@ -352,24 +460,19 @@ function fmtClock(t){
   t = Math.max(0, Math.round(t));
   return String(Math.floor(t/60)).padStart(2,"0") + ":" + String(t%60).padStart(2,"0");
 }
-function stintWindow(meta, i){
-  if (!meta.green) return "";
-  var p = meta.green.split(":"), t = (+p[0])*60 + (+p[1] || 0) + i * (+meta.stintMin || 0);
-  var h = Math.floor(t/60) % 24, mn = t % 60;
-  var ampm = h >= 12 ? "PM" : "AM", hh = h % 12 || 12;
-  return hh + ":" + String(mn).padStart(2,"0") + " " + ampm;
-}
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function mean(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; }
 function sdev(a){ if (a.length < 2) return null; var m = mean(a); return Math.sqrt(a.reduce(function(x,y){return x+(y-m)*(y-m);},0)/(a.length-1)); }
 function driverById(r, id){ return r.drivers.find(function(d){ return d.id === id; }) || null; }
 function dcol(r, id){ var d = driverById(r, id); return d ? PAL[d.c % PAL.length] : {ui:"#6f7076", mark:"#6f7076"}; }
+function first(name){ return String(name || "").split(" ")[0]; }
 function allLaps(r){
   var out = [];
   r.stints.forEach(function(s, si){ s.laps.forEach(function(ms, li){ out.push({ms:ms, si:si, li:li, d:s.d}); }); });
   return out;
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
+function nowClock(){ return new Date().toTimeString().slice(0,8); }
 var GIFS = {
   home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4"],
   setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
@@ -424,8 +527,8 @@ function tgtPill(avgMs){
 var tab = "home";
 var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
-var cd = { running:false, endAt:0 };                    // countdown
-var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["quali","Quali"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"]];
+var cd = { running:false, endAt:0, stint:0 };           // countdown
+var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"]];
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -443,124 +546,269 @@ function renderTabs(){
   }).join("");
 }
 
+/* ---------- field builders ---------- */
+function fld(label, key, val, type, ph, attrs){
+  return '<div class="field"><label>' + label + '</label><input type="' + type + '" value="' + esc(val) + '" placeholder="' + esc(ph || "") + '" data-meta="' + key + '"' + (attrs || "") + '></div>';
+}
+function numf(label, key, val, ph, step){ return fld(label, key, val, "number", ph, ' min="0" step="' + (step || "1") + '"'); }
+function self(label, key, val, opts){
+  return '<div class="field"><label>' + label + '</label><select data-meta="' + key + '">' + opts.map(function(o){
+    return '<option value="' + o[0] + '"' + (String(val) === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>';
+}
+function h2(t, first){ return '<h2' + (first ? "" : ' style="margin-top:22px"') + '>' + t + '</h2>'; }
+
 /* ---------- SETUP ---------- */
 function paneSetup(){
-  var r = cur(), m = r.meta;
-  var h = '<h2>Race setup</h2><div class="grid2">'
-    + fld("Event name","event",m.event,"text","e.g. Vegas 3H Endurance")
+  var r = cur(), m = r.meta, tm = isTime(r);
+  var h = h2("Event", true) + '<div class="grid2">'
+    + fld("Event name","event",m.event,"text","e.g. 3H Endurance")
+    + fld("Series / championship","series",m.series,"text","")
+    + fld("Round","round",m.round,"text","e.g. 4 of 8")
     + fld("Team name","name",m.name,"text","")
-    + fld("Track","track",m.track,"text","")
+    + fld("Entry / " + vehLabel(r).toLowerCase() + " number","carNo",m.carNo,"text","")
+    + fld("Class","cls",m.cls,"text","e.g. GT4, Pro-Am")
     + fld("Date","date",m.date,"date","")
     + fld("Green flag","green",m.green,"time","")
-    + fld("Stints","stints",m.stints,"number","")
-    + fld("Stint length (min)","stintMin",m.stintMin,"number","")
-    + fld("Briefing link (optional)","link",m.link,"url","https://…")
+    + fld("Briefing / regs link","link",m.link,"url","https://…")
     + '</div>'
-    + '<div class="field" style="margin-top:12px"><label>Notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>';
+    + '<div class="field" style="margin-top:12px"><label>Event notes</label><textarea data-meta="notes">' + esc(m.notes) + '</textarea></div>';
 
-  h += '<h2 style="margin-top:22px">Drivers</h2><div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Color</th><th></th></tr></thead><tbody>';
-  r.drivers.forEach(function(d, i){
-    h += '<tr><td><input type="text" value="' + esc(d.name) + '" data-drv="' + d.id + '"></td>'
+  h += h2("Format &amp; rules") + '<div class="grid2">'
+    + self("Race type","raceType",m.raceType,RACE_TYPES)
+    + self("Race length basis","lenBasis",m.lenBasis,LEN_BASIS)
+    + (tm ? numf("Race duration (min)","duration",m.duration,"180") : numf("Race laps","raceLaps",m.raceLaps,"20"))
+    + self("Pit stops","stintMode",m.stintMode,STINT_MODES)
+    + (m.stintMode === "fixed" ? numf("Stints","stints",m.stints,"9") + numf("Stint length (" + unitLbl(r) + ")","stintMin",m.stintMin,"20") : "")
+    + (m.stintMode === "free" ? numf("Minimum stops","minStops",m.minStops,"0") + numf("Min stint (" + unitLbl(r) + ")","minStintMin",m.minStintMin,"") + numf("Max stint (" + unitLbl(r) + ")","maxStintMin",m.maxStintMin,"") : "")
+    + (m.stintMode !== "none" ? numf("Max consecutive drive (min)","maxDriveCons",m.maxDriveCons,"") + numf("Max total drive per driver (min)","maxDriveTotal",m.maxDriveTotal,"")
+        + self("Driver change required","driverChange",m.driverChange,YESNO) + self(vehLabel(r) + " swap at stops","vehicleSwap",m.vehicleSwap,YESNO)
+        + numf("Pit lane time loss (s)","pitLoss",m.pitLoss,"") + numf("Minimum pit stop (s)","minPit",m.minPit,"") : "")
+    + self("Radios allowed","radios",m.radios,YESNO)
+    + numf("Minimum weight / ballast (kg)","minWeight",m.minWeight,"")
+    + '</div><p class="hint" style="margin-top:8px">Fixed stints: rotation every N ' + unitLbl(r) + '. Free strategy: you build the stint list yourself and the calculator checks fuel, tyres, and drive-time limits. No stops: one stint, whole race.</p>';
+
+  h += h2(vehLabel(r)) + '<div class="grid2">'
+    + self("Discipline","discipline",m.discipline,DISC)
+    + fld("Make / model","vehicle",m.vehicle,"text","e.g. Sodi RT10, Porsche 992 Cup")
+    + numf("Fuel capacity (L)","fuelCap",m.fuelCap,"", "0.1")
+    + numf("Fuel per lap (L)","fuelPerLap",m.fuelPerLap,"", "0.01")
+    + numf("Tyre life (laps)","tyreLife",m.tyreLife,"")
+    + numf("Tyre sets available","tyreSets",m.tyreSets,"")
+    + '</div><div class="field" style="margin-top:12px"><label>' + vehLabel(r) + ' notes — setup, gearing, pressures, quirks</label><textarea data-meta="vehicleNotes">' + esc(m.vehicleNotes) + '</textarea></div>';
+
+  h += h2("Track") + '<div class="grid2">'
+    + fld("Track","track",m.track,"text","")
+    + fld("Location","location",m.location,"text","City, region")
+    + numf("Lap length","trackLen",m.trackLen,"", "0.001") + self("Length unit","lenUnit",m.lenUnit,LEN_UNITS)
+    + fld("Layout / configuration","layout",m.layout,"text","e.g. GP loop, short course")
+    + self("Direction","direction",m.direction,DIRS)
+    + numf("Turns","turns",m.turns,"")
+    + '</div><div class="field" style="margin-top:12px"><label>Track notes — overtaking spots, pit entry, kerbs, hazards</label><textarea data-meta="trackNotes">' + esc(m.trackNotes) + '</textarea></div>';
+
+  h += h2("Conditions") + '<div class="grid2">'
+    + fld("Forecast / weather","weather",m.weather,"text","e.g. clear, 20% rain after 8pm")
+    + numf("Air temp","air",m.air,"", "0.1") + numf("Track temp","trackTemp",m.trackTemp,"", "0.1") + self("Temp unit","tempUnit",m.tempUnit,TEMP_UNITS)
+    + self("Surface","surface",m.surface,SURFACES)
+    + fld("Wind","wind",m.wind,"text","e.g. 15 km/h headwind on main straight")
+    + self("Light","light",m.light,LIGHTS)
+    + '</div><div class="field" style="margin-top:12px"><label>Conditions notes — grip evolution, wet lines, visibility</label><textarea data-meta="condNotes">' + esc(m.condNotes) + '</textarea></div>'
+    + '<p class="hint" style="margin-top:8px">Live changes during the race go in the Race log (WEATHER entries), so this stays the pre-race picture.</p>';
+
+  h += h2("Drivers") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Color</th><th>Weight (kg)</th><th>Licence / grade</th><th>Notes</th><th></th></tr></thead><tbody>';
+  r.drivers.forEach(function(d){
+    h += '<tr><td><input type="text" value="' + esc(d.name) + '" data-drv="' + d.id + '" style="min-width:140px"></td>'
       + '<td><select data-drvc="' + d.id + '">' + PAL.map(function(p, ci){
           return '<option value="' + ci + '"' + (d.c === ci ? " selected" : "") + '>' + p.name + '</option>'; }).join("") + '</select></td>'
+      + '<td><input class="num" type="text" inputmode="decimal" value="' + esc(d.weight) + '" data-drvw="' + d.id + '"></td>'
+      + '<td><input type="text" value="' + esc(d.licence) + '" data-drvl="' + d.id + '" style="max-width:120px"></td>'
+      + '<td><input type="text" value="' + esc(d.notes) + '" data-drvn="' + d.id + '"></td>'
       + '<td><button class="mini danger" data-deldrv="' + d.id + '">remove</button></td></tr>';
   });
   h += '</tbody></table></div><button class="mini" id="addDrv">+ Add driver</button>';
-  h += '<h2 style="margin-top:22px">Races &amp; data</h2><div class="btn-row"><button class="mini" id="newRace">+ New race</button><button class="mini ghost" id="exportBtn">Export</button><button class="mini ghost" id="importBtn">Import</button></div>';
+  if (m.minWeight){
+    var under = r.drivers.filter(function(d){ return +d.weight && +d.weight < +m.minWeight; });
+    h += '<p class="hint" style="margin-top:8px">Minimum weight ' + esc(m.minWeight) + ' kg' + (under.length ? ' — ballast needed for ' + under.map(function(d){ return esc(first(d.name)) + " (+" + (+m.minWeight - +d.weight).toFixed(1) + " kg)"; }).join(", ") : ' — enter driver weights to see ballast needs') + '.</p>';
+  }
+
+  h += h2("Checklist &amp; deadlines") + '<div class="btn-row" style="margin:10px 0"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
+  if (r.checklist.length){
+    h += '<div class="tbl-wrap"><table><thead><tr><th></th><th>Item</th><th>Due</th><th></th></tr></thead><tbody>';
+    r.checklist.slice().sort(function(a, b){ return (a.done - b.done) || String(a.due).localeCompare(String(b.due)); }).forEach(function(c){
+      var late = !c.done && c.due && c.due < new Date().toISOString().slice(0,10);
+      h += '<tr class="' + (c.done ? "ck-done" : "") + '"><td><input type="checkbox" data-ckdone="' + c.id + '"' + (c.done ? " checked" : "") + '></td>'
+        + '<td><input type="text" value="' + esc(c.text) + '" data-ckt="' + c.id + '"></td>'
+        + '<td><input type="date" value="' + esc(c.due) + '" data-ckd="' + c.id + '" style="max-width:160px' + (late ? ";color:var(--red)" : "") + '"></td>'
+        + '<td><button class="mini danger" data-ckdel="' + c.id + '">&times;</button></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  } else h += '<p class="hint">Entry payment, driver registration, scrutineering, briefing times, ballast pickup — anything with a deadline goes here.</p>';
+
+  h += h2("Races &amp; data") + '<div class="btn-row"><select id="newTpl">' + TEMPLATES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
+    + '<button class="mini" id="newRace">+ New race</button><button class="mini ghost" id="exportBtn">Export</button><button class="mini ghost" id="importBtn">Import</button></div>';
   h += '<div class="callout">Data lives in this browser only. Before race day, <b>Export</b> a backup and <b>Import</b> it on the second phone — then export again after the race to merge notes.</div>';
   h += '<div style="margin-top:18px;border-top:1px dashed var(--line);padding-top:14px"><button class="danger mini" id="delRace">Delete this race</button></div>';
   return h;
 }
-function fld(label, key, val, type, ph){
-  return '<div class="field"><label>' + label + '</label><input type="' + type + '" value="' + esc(val) + '" placeholder="' + esc(ph) + '" data-meta="' + key + '"' + (type === "number" ? ' min="1" max="60"' : "") + '></div>';
-}
 
 /* ---------- STRATEGY ---------- */
+function driveStats(r){
+  var counts = {}, units = {}, runs = [], run = null;
+  r.plan.forEach(function(p){
+    var id = p.d, len = +p.len || 0;
+    if (id){ counts[id] = (counts[id] || 0) + 1; units[id] = (units[id] || 0) + len; }
+    if (run && run.id === id && id){ run.len++; run.units += len; }
+    else { run = {id:id, len:1, units:len}; runs.push(run); }
+  });
+  return {counts:counts, units:units, runs:runs};
+}
 function paneStrategy(){
-  var r = cur(), m = r.meta, n = m.stints;
-  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. Build the plan here before the race, then push it into the Race tab with one tap — during the race the Race tab is the record of what actually happened, this stays the plan.</p>';
+  var r = cur(), m = r.meta, n = r.plan.length, tm = isTime(r), u = unitLbl(r);
+  var h = '<h2>Stint plan</h2><p class="hint">Tap a stint to cycle through drivers. '
+    + (m.stintMode === "free" ? 'Set each stint’s length in ' + u + ' below the cells and add or remove stints to match your stop count. ' : m.stintMode === "none" ? 'No pit stops: one stint covers the whole race. ' : 'Fixed rotation every ' + fmtUnits(r, m.stintMin) + '. ')
+    + 'Push the plan into the Race tab with one tap — the Race tab records what actually happened, this stays the plan.</p>';
   h += '<div class="plan-row">';
   for (var i = 0; i < n; i++){
-    var d = driverById(r, r.plan[i]);
+    var d = driverById(r, r.plan[i].d);
     var col = d ? PAL[d.c % PAL.length].ui : null;
     h += '<button class="plan-cell" data-plan="' + i + '"' + (col ? ' style="border-color:' + col + ';color:' + col + '"' : "") + '>'
       + '<span class="pc-n">S' + (i+1) + '</span>'
-      + '<span class="pc-who">' + (d ? esc(d.name.split(" ")[0]).toUpperCase() : "—") + '</span>'
-      + '<span class="pc-t">' + stintWindow(m, i) + '</span></button>';
+      + '<span class="pc-who">' + (d ? esc(first(d.name)).toUpperCase() : "—") + '</span>'
+      + '<span class="pc-t">' + stintWindow(r, i) + '</span></button>';
   }
   h += '</div>';
-  /* totals + warnings */
-  var counts = {}, runs = [], run = null;
-  r.plan.forEach(function(id){
-    if (id) counts[id] = (counts[id] || 0) + 1;
-    if (run && run.id === id && id) run.len++;
-    else { run = {id:id, len:1}; runs.push(run); }
-  });
-  var maxRun = runs.reduce(function(mx, x){ return x.id && x.len > mx ? x.len : mx; }, 0);
+  if (m.stintMode === "free"){
+    h += '<div class="plan-row plan-lens">';
+    for (var j = 0; j < n; j++) h += '<input class="num" type="number" min="1" value="' + esc(r.plan[j].len) + '" data-plen="' + j + '" title="S' + (j+1) + ' length (' + u + ')">';
+    h += '</div>';
+    var tot = planTotal(r), rl = raceLen(r);
+    h += '<div class="btn-row" style="margin-top:8px"><button class="mini" id="planAddStint">+ Stint</button><button class="mini" id="planDelStint"' + (n <= 1 ? " disabled" : "") + '>&minus; Stint</button>'
+      + '<span class="pill' + '" style="color:' + (rl && tot !== rl ? "var(--red)" : "var(--green)") + '">' + fmtUnits(r, tot) + ' planned' + (rl ? ' / ' + fmtUnits(r, rl) + ' race' : "") + '</span>'
+      + '<span class="pill">' + (n - 1) + ' stop' + (n === 2 ? "" : "s") + (m.pitLoss ? ' · ' + Math.round((n - 1) * +m.pitLoss) + 's in pit lane' : "") + '</span></div>';
+  }
+
+  /* per-driver totals + rule checks */
+  var ds = driveStats(r);
   h += '<div class="btn-row" style="margin-top:10px">';
   r.drivers.forEach(function(d){
-    var c = counts[d.id] || 0;
-    h += '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(d.name.split(" ")[0]) + ' ' + c + ' × ' + m.stintMin + 'min = ' + (c * m.stintMin) + 'min</span>';
+    var c = ds.counts[d.id] || 0, un = ds.units[d.id] || 0;
+    h += '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(first(d.name)) + ' ' + c + ' stint' + (c === 1 ? "" : "s") + ' · ' + fmtUnits(r, un) + '</span>';
   });
   h += '</div>';
-  h += '<div class="plan-warn ' + (maxRun >= 2 ? "" : "ok") + '">'
-    + (r.plan.some(function(p){ return !p; }) ? "Unassigned stints remain. "
-      : maxRun >= 3 ? "Warning: " + maxRun + " consecutive stints (" + (maxRun * m.stintMin) + " min straight) — check that's allowed and survivable. "
-      : maxRun === 2 ? "Contains a double stint — confirm consecutive stints are allowed at this event. "
-      : "Pure alternation — every rest gap is one stint long.") + '</div>';
+  var warns = [];
+  if (r.plan.some(function(p){ return !p.d; })) warns.push("Unassigned stints remain.");
+  var maxRun = ds.runs.reduce(function(mx, x){ return x.id && x.len > mx ? x.len : mx; }, 0);
+  if (m.stintMode !== "none"){
+    if (m.driverChange === "yes" && maxRun >= 2) warns.push("Driver change is required at stops but the plan has " + (maxRun >= 3 ? maxRun + " consecutive stints" : "a double stint") + " for one driver.");
+    else if (maxRun >= 3) warns.push(maxRun + " consecutive stints for one driver — check that’s allowed and survivable.");
+    if (tm){
+      ds.runs.forEach(function(x){ if (x.id && +m.maxDriveCons && x.units > +m.maxDriveCons) warns.push(esc(first((driverById(r, x.id) || {}).name)) + " drives " + fmtMin(x.units) + " straight, over the " + fmtMin(+m.maxDriveCons) + " consecutive limit."); });
+      r.drivers.forEach(function(d){ if (+m.maxDriveTotal && (ds.units[d.id] || 0) > +m.maxDriveTotal) warns.push(esc(first(d.name)) + " totals " + fmtMin(ds.units[d.id]) + ", over the " + fmtMin(+m.maxDriveTotal) + " per-driver limit."); });
+    }
+    if (m.stintMode === "free"){
+      if (raceLen(r) && planTotal(r) !== raceLen(r)) warns.push("Planned stints total " + fmtUnits(r, planTotal(r)) + " against a " + fmtUnits(r, raceLen(r)) + " race.");
+      if (+m.minStops && n - 1 < +m.minStops) warns.push("Only " + (n - 1) + " stops planned; the rules require " + m.minStops + ".");
+      r.plan.forEach(function(p, i){ if (+m.maxStintMin && +p.len > +m.maxStintMin) warns.push("S" + (i+1) + " is " + fmtUnits(r, +p.len) + ", over the " + fmtUnits(r, +m.maxStintMin) + " max stint."); if (+m.minStintMin && +p.len < +m.minStintMin) warns.push("S" + (i+1) + " is under the " + fmtUnits(r, +m.minStintMin) + " minimum stint."); });
+      var fr = fuelRange(r); if (fr) r.plan.forEach(function(p, i){ var lapsIn = tm ? (lapEstMs(r) ? (+p.len * 60000) / lapEstMs(r) : 0) : +p.len; if (lapsIn > fr) warns.push("S" + (i+1) + " needs ~" + Math.ceil(lapsIn) + " laps of fuel; range is " + fr + "."); });
+    }
+  }
+  h += '<div class="plan-warn ' + (warns.length ? "" : "ok") + '">' + (warns.length ? warns.join(" ") : (m.stintMode === "none" ? "Single stint — nothing to rotate." : maxRun >= 2 ? "Plan contains consecutive stints." : "Pure alternation — every rest gap is one stint long.")) + '</div>';
   h += '<div class="btn-row" style="margin-top:10px">';
-  r.drivers.forEach(function(d, di){
-    h += '<button class="mini" data-preset="' + di + '">Alternate · ' + esc(d.name.split(" ")[0]) + ' starts</button>';
-  });
+  if (n > 1) r.drivers.forEach(function(d, di){ h += '<button class="mini" data-preset="' + di + '">Alternate · ' + esc(first(d.name)) + ' starts</button>'; });
   h += '<button class="mini" id="planClear">Clear</button>'
     + '<button class="primary mini" id="planApply">Apply plan &rarr; Race tab</button></div>';
 
-  h += '<h2 style="margin-top:24px">Targets</h2><div class="grid2">'
-    + fld("Target lap time","targetLap",m.targetLap,"text","e.g. 51.5")
-    + fld("Target finish","targetPos",m.targetPos,"text","e.g. P3")
+  /* stop calculator */
+  if (m.stintMode === "free") h += stopsCalc(r);
+
+  h += h2("Targets") + '<div class="grid2">'
+    + fld("Target lap time","targetLap",m.targetLap,"text","e.g. 51.5 or 1:42.3")
+    + fld("Target finish","targetPos",m.targetPos,"text","e.g. P3, class win")
     + '</div>'
-    + '<p class="hint" style="margin-top:8px">Set a target lap and the Race tab shows a live &Delta; per stint, and Analysis compares your average against it.</p>'
-    + '<div class="field" style="margin-top:12px"><label>Strategy notes — passing plan, signals, kart intel, weather</label><textarea data-meta="stratNotes">' + esc(m.stratNotes) + '</textarea></div>';
+    + '<p class="hint" style="margin-top:8px">The target lap drives the live &Delta; in the Race tab, the Analysis comparison' + (tm ? ", and the lap estimate for fuel and lap-count maths" : ", and the clock for lap-based stints") + '.</p>'
+    + '<div class="field" style="margin-top:12px"><label>Strategy notes — passing plan, signals, pit choreography, weather calls</label><textarea data-meta="stratNotes">' + esc(m.stratNotes) + '</textarea></div>';
   return h;
 }
+function fuelRange(r){ var m = r.meta; return (+m.fuelCap && +m.fuelPerLap) ? Math.floor(+m.fuelCap / +m.fuelPerLap) : 0; }
+function stopsCalc(r){
+  var m = r.meta, tm = isTime(r), lapMs = lapEstMs(r), laps = raceLapsEst(r), fr = fuelRange(r);
+  var h = h2("Stop calculator") + '<div class="tiles">';
+  h += tile("Race laps", laps ? "~" + laps : "—", tm ? (lapMs ? "at " + fmtLap(lapMs) + " avg" : "set a target lap") : "lap-count race");
+  h += tile("Fuel range", fr ? fr + " laps" : "—", fr ? (+m.fuelCap) + " L ÷ " + (+m.fuelPerLap) + " L/lap" : "enter capacity + burn");
+  h += tile("Tyre life", +m.tyreLife ? m.tyreLife + " laps" : "—", +m.tyreSets ? m.tyreSets + " sets" : "per set");
+  var need = [];
+  if (+m.minStops) need.push({k:"rules", v:+m.minStops});
+  if (fr && laps) need.push({k:"fuel", v:Math.max(0, Math.ceil(laps / fr) - 1)});
+  if (+m.tyreLife && laps) need.push({k:"tyres", v:Math.max(0, Math.ceil(laps / +m.tyreLife) - 1)});
+  if (tm && +m.maxStintMin) need.push({k:"max stint", v:Math.max(0, Math.ceil(raceLen(r) / +m.maxStintMin) - 1)});
+  if (tm && +m.maxDriveCons) need.push({k:"drive limit", v:Math.max(0, Math.ceil(raceLen(r) / +m.maxDriveCons) - 1)});
+  var req = need.reduce(function(mx, x){ return Math.max(mx, x.v); }, 0), by = need.filter(function(x){ return x.v === req; }).map(function(x){ return x.k; });
+  h += tile("Stops needed", need.length ? String(req) : "—", need.length ? "driven by " + by.join(", ") : "no constraints set");
+  if (+m.pitLoss) h += tile("Pit lane cost", Math.round(req * +m.pitLoss) + "s", req + " × " + m.pitLoss + "s");
+  h += '</div><div class="btn-row">';
+  [req, req + 1, req + 2].forEach(function(k, i){ if (need.length || i > 0) h += '<button class="mini' + (i === 0 ? " primary" : "") + '" data-build="' + k + '">Build ' + k + '-stop plan</button>'; });
+  h += '</div><p class="hint" style="margin-top:8px">Builds equal-length stints over the ' + fmtUnits(r, raceLen(r)) + ' race, alternating drivers; then trim individual stint lengths above to hit fuel and tyre windows.</p>';
+  return h;
+}
+function buildPlan(r, stops){
+  var n = stops + 1, rl = raceLen(r) || planTotal(r), nd = r.drivers.length;
+  var base = Math.floor(rl / n), rem = rl - base * n, prev = r.plan;
+  r.plan = [];
+  for (var i = 0; i < n; i++) r.plan.push({d: prev[i] && prev[i].d ? prev[i].d : (nd ? r.drivers[i % nd].id : ""), len: base + (i < rem ? 1 : 0)});
+  normalize(r);
+}
 
-/* ---------- QUALI ---------- */
-function paneQuali(){
+/* ---------- SESSIONS (practice / quali / warm-up / heats) ---------- */
+function paneSessions(){
   var r = cur();
-  var h = '<h2>Qualifying</h2><p class="hint">Log every push lap per driver — enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>. Best lap is picked automatically.</p>';
-  h += '<div class="grid2" style="margin-top:12px;align-items:start">';
-  r.drivers.forEach(function(d){
-    var times = r.quali.times[d.id] || [];
-    var best = times.length ? Math.min.apply(null, times) : null;
-    var col = PAL[d.c % PAL.length].ui;
-    h += '<div class="tool"><h3 style="color:' + col + '">' + esc(d.name) + '</h3>'
-      + '<div class="btn-row"><input type="text" class="mono" style="max-width:130px" placeholder="lap time" data-qadd="' + d.id + '">'
-      + '<button class="mini" data-qbtn="' + d.id + '">Add</button>'
-      + (best ? '<span class="pill"><span class="dot" style="background:' + col + '"></span>best ' + fmtLap(best) + '</span>' : "")
-      + '</div><div class="laps-list">'
-      + times.map(function(ms, i){
-          return '<span class="lap-chip' + (ms === best ? " best" : "") + '">' + fmtLap(ms)
-            + '<button title="delete" data-qdel="' + d.id + ':' + i + '">&times;</button></span>';
-        }).join("")
-      + '</div></div>';
+  var h = '<h2>Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>; the best lap is picked automatically and feeds the Analysis tab.</p>';
+  h += '<div class="btn-row" style="margin:10px 0"><select id="sessType">' + SESSION_TYPES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
+    + '<input type="text" id="sessName" placeholder="session name (optional)" style="max-width:200px"><button class="mini" id="sessAdd">+ Add session</button>'
+    + '<div class="field" style="max-width:160px;margin-left:auto"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.meta.grid) + '" data-meta="grid" placeholder="e.g. P4"></div></div>';
+  r.sessions.forEach(function(s){
+    var typeName = (SESSION_TYPES.find(function(t){ return t[0] === s.type; }) || ["", s.type])[1];
+    var allT = []; Object.keys(s.times).forEach(function(d){ allT = allT.concat(s.times[d]); });
+    var sBest = allT.length ? Math.min.apply(null, allT) : null;
+    h += '<div class="tool" style="margin:12px 0"><h3>' + esc(s.name || typeName) + ' <span style="color:var(--ink-faint)">· ' + typeName + '</span>'
+      + (sBest ? ' <span class="best" style="margin-left:8px">' + fmtLap(sBest) + '</span>' : "") + '</h3>'
+      + '<div class="btn-row"><input type="text" value="' + esc(s.cond) + '" data-scond="' + s.id + '" placeholder="conditions — dry 24°C, damp, new tyres" style="max-width:300px">'
+      + '<input type="text" value="' + esc(s.notes) + '" data-snote="' + s.id + '" placeholder="notes" style="max-width:300px">'
+      + '<button class="mini danger" data-sdel="' + s.id + '" style="margin-left:auto">remove session</button></div>';
+    h += '<div class="grid2" style="margin-top:12px;align-items:start">';
+    r.drivers.forEach(function(d){
+      var times = s.times[d.id] || [];
+      var best = times.length ? Math.min.apply(null, times) : null;
+      var col = PAL[d.c % PAL.length].ui;
+      h += '<div><div class="btn-row"><b style="color:' + col + '">' + esc(d.name) + '</b>'
+        + '<input type="text" class="mono" style="max-width:120px" placeholder="lap time" data-qadd="' + s.id + ':' + d.id + '">'
+        + '<button class="mini" data-qbtn="' + s.id + ':' + d.id + '">Add</button>'
+        + (best ? '<span class="pill"><span class="dot" style="background:' + col + '"></span>best ' + fmtLap(best) + '</span>' : "")
+        + '</div><div class="laps-list">'
+        + times.map(function(ms, i){
+            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">' + fmtLap(ms)
+              + '<button title="delete" data-qdel="' + s.id + ':' + d.id + ':' + i + '">&times;</button></span>';
+          }).join("")
+        + '</div></div>';
+    });
+    h += '</div></div>';
   });
-  h += '</div><div class="field" style="max-width:220px;margin-top:14px"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.quali.grid) + '" data-grid placeholder="e.g. P4"></div>';
   return h;
 }
 
 /* ---------- RACE ---------- */
 function paneRace(){
-  var r = cur(), m = r.meta;
+  var r = cur(), m = r.meta, tm = isTime(r), showPit = m.stintMode !== "none", showFuel = m.discipline !== "kart";
   var h = '<h2>Race</h2>';
   /* timers */
   h += '<div class="tools-row">';
-  var rem = cd.running ? (cd.endAt - Date.now())/1000 : m.stintMin*60;
-  h += '<div class="tool"><h3>Stint countdown &middot; ' + m.stintMin + ' min</h3>'
-    + '<div class="clockface" id="cdFace">' + fmtClock(rem) + '</div>'
+  if (cd.stint >= r.plan.length) cd.stint = 0;
+  var cdLen = unitsToMs(r, +r.plan[cd.stint].len || 0);
+  var rem = cd.running ? (cd.endAt - Date.now())/1000 : (cdLen || 0)/1000;
+  h += '<div class="tool"><h3>Stint countdown · <select id="cdStint" style="width:auto;padding:2px 24px 2px 8px">' + r.plan.map(function(p, i){ return '<option value="' + i + '"' + (cd.stint === i ? " selected" : "") + '>S' + (i+1) + ' · ' + fmtUnits(r, +p.len) + '</option>'; }).join("") + '</select></h3>'
+    + '<div class="clockface" id="cdFace">' + (cdLen ? fmtClock(rem) : "——:——") + '</div>'
     + '<div class="board-prompt" id="cdPrompt"></div>'
-    + '<div class="btn-row"><button class="primary mini" id="cdStart">' + (cd.running ? "Restart" : "Start stint") + '</button>'
+    + '<div class="btn-row"><button class="primary mini" id="cdStart"' + (cdLen ? "" : " disabled") + '>' + (cd.running ? "Restart" : "Start stint") + '</button>'
     + '<button class="mini" id="cdStop">Reset</button></div>'
-    + '<p class="hint" style="margin:8px 0 0">Prompts follow the signal book: board at 5:00 and 3:00, IN NOW at 1:00.</p></div>';
+    + '<p class="hint" style="margin:8px 0 0">' + (cdLen ? (m.radios === "yes" ? "Radio calls" : "Pit-board prompts") + " at 5:00 and 3:00, IN NOW at 1:00." : "Set a target lap in Strategy to time lap-based stints.") + '</p></div>';
   h += '<div class="tool"><h3>Lap stopwatch &rarr; logs to stint</h3>'
     + '<div class="clockface" id="swFace">' + (sw.running ? "" : "00:00") + '</div>'
     + '<div class="board-prompt mono" id="swLast">' + (sw.running ? "" : "&nbsp;") + '</div>'
@@ -573,18 +821,24 @@ function paneRace(){
   h += '</div>';
 
   /* stint table */
-  h += '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Start</th><th>Driver</th><th>Kart</th><th>Pos in</th><th>Pos out</th><th>Best lap</th><th>Laps</th><th>Notes</th><th></th></tr></thead><tbody>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Plan</th><th>Actual start</th><th>Driver</th><th>' + vehLabel(r) + '</th><th>Pos in</th><th>Pos out</th>'
+    + (showPit ? '<th>Pit (s)</th>' : "") + (showFuel ? '<th>Fuel (L)</th><th>Tyres</th>' : "")
+    + '<th>Best lap</th><th>Laps</th><th>Notes</th><th></th></tr></thead><tbody>';
+  var cols = 10 + (showPit ? 1 : 0) + (showFuel ? 2 : 0);
   r.stints.forEach(function(s, i){
     var best = stintBest(s);
     var col = s.d ? dcol(r, s.d).ui : null;
     h += '<tr>'
       + '<td class="mono">S' + (i+1) + '</td>'
-      + '<td class="mono">' + stintWindow(m, i) + '</td>'
+      + '<td class="mono">' + stintWindow(r, i) + '</td>'
+      + '<td><input class="num" type="text" value="' + esc(s.start) + '" data-sst="' + i + '" placeholder="hh:mm" style="max-width:80px"></td>'
       + '<td><select data-sd="' + i + '"><option value="">—</option>' + r.drivers.map(function(d){
-          return '<option value="' + d.id + '"' + (s.d === d.id ? " selected" : "") + '>' + esc(d.name.split(" ")[0]) + '</option>'; }).join("") + '</select></td>'
+          return '<option value="' + d.id + '"' + (s.d === d.id ? " selected" : "") + '>' + esc(first(d.name)) + '</option>'; }).join("") + '</select></td>'
       + '<td><input class="num" type="text" value="' + esc(s.kart) + '" data-sk="' + i + '"></td>'
       + '<td><input class="num" type="text" value="' + esc(s.ps) + '" data-sps="' + i + '"></td>'
       + '<td><input class="num" type="text" value="' + esc(s.pe) + '" data-spe="' + i + '"></td>'
+      + (showPit ? '<td><input class="num" type="text" value="' + esc(s.pit) + '" data-sp="' + i + '"></td>' : "")
+      + (showFuel ? '<td><input class="num" type="text" value="' + esc(s.fuel) + '" data-sf="' + i + '"></td><td><input class="num" type="text" value="' + esc(s.tyres) + '" data-st="' + i + '" placeholder="set"></td>' : "")
       + '<td class="mono">' + (s.laps.length
           ? '<span class="best">' + fmtLap(best) + '</span>'
           : '<input class="num" type="text" value="' + esc(s.best) + '" data-sb="' + i + '" placeholder="—">') + '</td>'
@@ -593,7 +847,7 @@ function paneRace(){
       + '<td><button class="mini" data-open="' + i + '">' + (openStint === i ? "close" : "laps") + '</button></td>'
       + '</tr>';
     if (openStint === i){
-      h += '<tr class="laprow"><td colspan="10">'
+      h += '<tr class="laprow"><td colspan="' + cols + '">'
         + '<div class="btn-row"><b style="font-family:var(--disp);text-transform:uppercase' + (col ? ";color:" + col : "") + '">S' + (i+1) + ' laps</b>'
         + '<input type="text" class="mono" style="max-width:120px" placeholder="add lap" data-ladd="' + i + '">'
         + '<button class="mini" data-lbtn="' + i + '">Add</button>'
@@ -606,6 +860,25 @@ function paneRace(){
     }
   });
   h += '</tbody></table></div>';
+
+  /* race log */
+  h += h2("Race log") + '<div class="btn-row" style="margin:10px 0"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
+    + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
+  if (r.log.length){
+    h += '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Flag</th><th>Note</th><th></th></tr></thead><tbody>';
+    r.log.slice().reverse().forEach(function(e, ri){
+      var i = r.log.length - 1 - ri, kind = LOG_KINDS.find(function(k){ return k[0] === e.kind; }) || ["note","NOTE"];
+      h += '<tr><td class="mono">' + esc(e.t) + '</td><td><span class="pill flag-' + esc(e.kind) + '">' + kind[1] + '</span></td><td>' + esc(e.note) + '</td><td><button class="mini danger" data-logdel="' + i + '">&times;</button></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  } else h += '<p class="hint">Timestamped record of flags, safety cars, pit stops, penalties, incidents, and weather changes. Entries get the current clock time.</p>';
+
+  /* result */
+  h += h2("Result") + '<div class="grid2">'
+    + '<div class="field"><label>Finish position</label><input type="text" class="mono" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="e.g. P2, 1st in class"></div>'
+    + '<div class="field"><label>Laps completed</label><input type="text" class="mono" value="' + esc(r.result.laps) + '" data-res="laps" placeholder=""></div>'
+    + '<div class="field"><label>Fastest lap (from data)</label><input type="text" class="mono" value="' + (allLaps(r).length ? fmtLap(Math.min.apply(null, allLaps(r).map(function(l){ return l.ms; }))) : "—") + '" disabled></div>'
+    + '</div><div class="field" style="margin-top:12px"><label>Debrief — what worked, what to change next time</label><textarea data-res="notes">' + esc(r.result.notes) + '</textarea></div>';
   return h;
 }
 
@@ -616,20 +889,22 @@ function raceStart(r){
   return isNaN(t.getTime()) ? null : t.getTime();
 }
 function raceState(r){
-  var st = raceStart(r), total = r.meta.stints * r.meta.stintMin * 60000;
-  if (st == null) return {live:false, elapsed:null, stint:0, pre:null};
+  var st = raceStart(r), total = unitsToMs(r, raceLen(r) || planTotal(r)), n = r.plan.length;
+  if (st == null || !total) return {live:false, elapsed:null, stint:0, pre:null, total:total};
   var el = Date.now() - st;
-  if (el < 0) return {live:false, elapsed:null, stint:0, pre:-el};
-  if (el >= total) return {live:false, elapsed:total, stint:r.meta.stints, done:true};
-  return {live:true, elapsed:el, stint:Math.floor(el/(r.meta.stintMin*60000))+1};
+  if (el < 0) return {live:false, elapsed:null, stint:0, pre:-el, total:total};
+  if (el >= total) return {live:false, elapsed:total, stint:n, done:true, total:total};
+  var si = n; for (var i = 0; i < n; i++){ if (el < unitsToMs(r, planStart(r, i + 1))) { si = i + 1; break; } }
+  return {live:true, elapsed:el, stint:si, total:total};
 }
 function fmtHMS(ms){ var s=Math.max(0,Math.floor(ms/1000)); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
 function latestPositions(r){
+  var n = r.plan.length;
   var teams = [{name:r.meta.name||"US", us:true, pos:r.ourPos}].concat(r.rivals.map(function(rv){ return {name:rv.name, us:false, pos:rv.pos}; }));
   var out = [];
   teams.forEach(function(t){
     var p = null, si = -1;
-    for (var i = r.meta.stints-1; i >= 0; i--){ var v = parseInt(t.pos[i],10); if (!isNaN(v)){ p = v; si = i; break; } }
+    for (var i = n-1; i >= 0; i--){ var v = parseInt(t.pos[i],10); if (!isNaN(v)){ p = v; si = i; break; } }
     var prev = null;
     if (si > 0){ for (var j = si-1; j >= 0; j--){ var w = parseInt(t.pos[j],10); if (!isNaN(w)){ prev = w; break; } } }
     if (p != null) out.push({name:t.name, us:t.us, pos:p, delta: prev == null ? 0 : (prev - p)});
@@ -643,7 +918,7 @@ function arcPath(r, a0, a1){
   return "M " + p0[0].toFixed(1) + " " + p0[1].toFixed(1) + " A " + r + " " + r + " 0 " + ((a1-a0) > 180 ? 1 : 0) + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1);
 }
 function paneMap(){
-  var r = cur(), n = r.meta.stints, rs = raceState(r);
+  var r = cur(), n = r.plan.length, rs = raceState(r), total = planTotal(r) || 1;
   var h = '<h2>Circle map viewer</h2><div class="cmv">';
   var pos = latestPositions(r);
   h += '<div class="cmv-tower">';
@@ -656,16 +931,18 @@ function paneMap(){
   } else h += '<p class="hint">Enter stint positions in the Rivals tab to populate the tower and the tags on the ring.</p>';
   h += '</div>';
 
-  var R = 120, seg = 360/n, gap = Math.min(6, seg*0.18);
+  var R = 120, gapDeg = n > 1 ? Math.min(6, (360/n)*0.18) : 0;
   var s = '<svg viewBox="0 0 340 340" class="cmv-ring" role="img" aria-label="Race progress ring">';
   s += '<circle cx="170" cy="170" r="' + R + '" fill="none" stroke="#161b23" stroke-width="26"/>';
   for (var i = 0; i < n; i++){
-    var st_ = r.stints[i], drv = st_.d || r.plan[i];
+    var a0 = planStart(r, i) / total * 360, a1 = (planStart(r, i) + (+r.plan[i].len || 0)) / total * 360;
+    var st_ = r.stints[i], drv = st_.d || r.plan[i].d;
     var col = drv && driverById(r, drv) ? dcol(r, drv).mark : "#2a313c";
     var op = rs.live ? (i+1 < rs.stint ? .95 : i+1 === rs.stint ? 1 : .3) : .75;
     var w = (rs.live && i+1 === rs.stint) ? 26 : 18;
-    s += '<path d="' + arcPath(R, i*seg + gap/2, (i+1)*seg - gap/2) + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" opacity="' + op + '"><title>S' + (i+1) + (drv && driverById(r, drv) ? " \u2014 " + esc(driverById(r, drv).name) : "") + '</title></path>';
-    var lp = polarPt(R + 26, i*seg + seg/2);
+    if (n === 1) s += '<circle cx="170" cy="170" r="' + R + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" opacity="' + op + '"/>';
+    else s += '<path d="' + arcPath(R, a0 + gapDeg/2, a1 - gapDeg/2) + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" opacity="' + op + '"><title>S' + (i+1) + (drv && driverById(r, drv) ? " — " + esc(driverById(r, drv).name) : "") + '</title></path>';
+    var lp = polarPt(R + 26, (a0 + a1) / 2);
     s += '<text x="' + lp[0].toFixed(1) + '" y="' + (lp[1]+3).toFixed(1) + '" text-anchor="middle" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="9">S' + (i+1) + '</text>';
   }
   if (pos.length){
@@ -679,44 +956,47 @@ function paneMap(){
     });
   }
   s += '<text x="170" y="160" text-anchor="middle" fill="#e8edf4" font-family="IBM Plex Mono,monospace" font-size="21" font-weight="700" id="cmvStint">'
-    + (rs.live ? "STINT " + rs.stint + "/" + n : rs.done ? "FINISH" : n + " \u00d7 " + r.meta.stintMin + "\u2032") + '</text>';
+    + (rs.live ? "STINT " + rs.stint + "/" + n : rs.done ? "FINISH" : fmtUnits(r, raceLen(r) || total).toUpperCase()) + '</text>';
   s += '<text x="170" y="188" text-anchor="middle" fill="#F49D70" font-family="IBM Plex Mono,monospace" font-size="17" font-weight="600" id="cmvClock">'
     + (rs.live || rs.done ? fmtHMS(rs.elapsed) : (rs.pre != null ? "T-" + fmtHMS(rs.pre) : "--:--:--")) + '</text>';
   s += '</svg>';
   h += s + '</div>';
 
   h += '<h2>Pit window</h2><div class="chart-wrap">';
-  var W = 720, HH = 110, L = 30, Rm = 14, total = n * r.meta.stintMin;
-  var xs = function(min){ return L + (min/total) * (W - L - Rm); };
+  var W = 720, HH = 110, L = 30, Rm = 14;
+  var xs = function(u){ return L + (u/total) * (W - L - Rm); };
   var pw = '<svg viewBox="0 0 ' + W + ' ' + HH + '" role="img" aria-label="Rotation timeline">';
   for (var k = 0; k < n; k++){
-    var stk = r.stints[k], dk = stk.d || r.plan[k];
+    var stk = r.stints[k], dk = stk.d || r.plan[k].d, s0 = planStart(r, k), s1 = s0 + (+r.plan[k].len || 0);
     var ck = dk && driverById(r, dk) ? dcol(r, dk).mark : "#2a313c";
-    pw += '<rect x="' + xs(k*r.meta.stintMin).toFixed(1) + '" y="34" width="' + (xs((k+1)*r.meta.stintMin) - xs(k*r.meta.stintMin) - 2).toFixed(1) + '" height="30" fill="' + ck + '" opacity=".82"><title>S' + (k+1) + '</title></rect>';
-    if (k > 0) pw += '<rect x="' + (xs(k*r.meta.stintMin) - 2).toFixed(1) + '" y="18" width="4" height="62" fill="#d4af37" opacity=".55"/>';
-    pw += '<text x="' + xs(k*r.meta.stintMin + r.meta.stintMin/2).toFixed(1) + '" y="53" text-anchor="middle" fill="#0a0d12" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="700">S' + (k+1) + '</text>';
+    pw += '<rect x="' + xs(s0).toFixed(1) + '" y="34" width="' + Math.max(1, xs(s1) - xs(s0) - 2).toFixed(1) + '" height="30" fill="' + ck + '" opacity=".82"><title>S' + (k+1) + '</title></rect>';
+    if (k > 0) pw += '<rect x="' + (xs(s0) - 2).toFixed(1) + '" y="18" width="4" height="62" fill="#d4af37" opacity=".55"/>';
+    pw += '<text x="' + xs((s0 + s1) / 2).toFixed(1) + '" y="53" text-anchor="middle" fill="#0a0d12" font-family="IBM Plex Mono,monospace" font-size="9" font-weight="700">S' + (k+1) + '</text>';
   }
-  for (var t2 = 0; t2 <= total; t2 += 30) pw += '<text x="' + xs(t2).toFixed(1) + '" y="98" text-anchor="middle" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="9">' + t2 + "\u2032" + '</text>';
-  pw += '<line id="pwNow" x1="0" x2="0" y1="12" y2="86" stroke="#f2f3f5" stroke-width="2"' + (rs.live ? ' transform="translate(' + xs(rs.elapsed/60000).toFixed(1) + ',0)"' : ' visibility="hidden"') + '/>';
+  var step = isTime(r) ? (total > 360 ? 60 : total > 90 ? 30 : 10) : (total > 60 ? 10 : 5);
+  for (var t2 = 0; t2 <= total; t2 += step) pw += '<text x="' + xs(t2).toFixed(1) + '" y="98" text-anchor="middle" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="9">' + (isTime(r) ? t2 + "′" : "L" + t2) + '</text>';
+  pw += '<line id="pwNow" x1="0" x2="0" y1="12" y2="86" stroke="#f2f3f5" stroke-width="2"' + (rs.live ? ' transform="translate(' + xs(rs.elapsed / rs.total * total).toFixed(1) + ',0)"' : ' visibility="hidden"') + '/>';
   pw += '</svg></div>';
   h += pw;
-  h += '<p class="hint">Gold bands mark the kart-rotation windows. The ring and tower read from the Strategy plan, Race records, and Rivals positions; the center clock and NOW cursor go live at the green flag.</p>';
+  h += '<p class="hint">Gold bands mark the planned stops. The ring and tower read from the Strategy plan, Race records, and Rivals positions; the center clock and NOW cursor go live at the green flag' + (isTime(r) ? "" : " once a lap time is known") + '.</p>';
   return h;
 }
 
 /* ---------- RIVALS ---------- */
 function paneRivals(){
-  var r = cur(), n = r.meta.stints;
-  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each team’s position at the end of every stint. Your team is the first row.</p>';
-  h += '<div class="btn-row" style="margin:10px 0"><input type="text" id="rivName" placeholder="rival team name" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th>';
+  var r = cur(), n = r.plan.length;
+  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + '. Your team is the first row; class and number help when the tower gets busy.</p>';
+  h += '<div class="btn-row" style="margin:10px 0"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
   h += '<th></th></tr></thead><tbody>';
-  h += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(r.meta.name) + '</span></td>';
+  h += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(r.meta.name || "Us") + '</span></td><td class="mono">' + esc(r.meta.carNo) + '</td><td>' + esc(r.meta.cls) + '</td>';
   for (var i2 = 0; i2 < n; i2++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(r.ourPos[i2]) + '" data-op="' + i2 + '"></td>';
   h += '<td></td></tr>';
   r.rivals.forEach(function(rv, ri){
-    h += '<tr><td><input type="text" value="' + esc(rv.name) + '" data-rvn="' + ri + '" style="min-width:130px"></td>';
+    h += '<tr><td><input type="text" value="' + esc(rv.name) + '" data-rvn="' + ri + '" style="min-width:130px"></td>'
+      + '<td><input class="num" type="text" value="' + esc(rv.no) + '" data-rvno="' + ri + '" style="max-width:56px"></td>'
+      + '<td><input type="text" value="' + esc(rv.cls) + '" data-rvc="' + ri + '" style="max-width:90px"></td>';
     for (var j = 0; j < n; j++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(rv.pos[j]) + '" data-rp="' + ri + ':' + j + '"></td>';
     h += '<td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
   });
@@ -725,8 +1005,8 @@ function paneRivals(){
   return h;
 }
 function posChart(r){
-  var n = r.meta.stints;
-  var teams = [{name:r.meta.name, pos:r.ourPos, us:true}].concat(r.rivals.map(function(rv){ return {name:rv.name, pos:rv.pos, us:false}; }));
+  var n = r.plan.length;
+  var teams = [{name:r.meta.name || "Us", pos:r.ourPos, us:true}].concat(r.rivals.map(function(rv){ return {name:rv.name, pos:rv.pos, us:false}; }));
   var pts = teams.map(function(t){
     return t.pos.map(function(p, i){ var v = parseInt(p, 10); return isNaN(v) ? null : {x:i, y:v}; }).filter(Boolean);
   });
@@ -735,7 +1015,7 @@ function posChart(r){
   var W = 720, H = 60 + maxP * 24, L = 40, R = 110, T = 18, B = 30;
   var xs = function(x){ return L + (n === 1 ? 0 : x * (W - L - R) / (n - 1)); };
   var ys = function(y){ return T + (y - 1) * (H - T - B) / Math.max(1, maxP - 1); };
-  var s = '<h2 style="margin-top:20px">Position trace</h2><div class="legend"><span class="pill"><span class="dot" style="background:' + PAL[0].mark + '"></span>' + esc(r.meta.name) + '</span><span class="pill"><span class="dot" style="background:' + RIVAL_C + '"></span>rivals</span></div>';
+  var s = '<h2 style="margin-top:20px">Position trace</h2><div class="legend"><span class="pill"><span class="dot" style="background:' + PAL[0].mark + '"></span>' + esc(r.meta.name || "Us") + '</span><span class="pill"><span class="dot" style="background:' + RIVAL_C + '"></span>rivals</span></div>';
   s += '<div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Race position by stint">';
   for (var p = 1; p <= maxP; p++)
     s += '<line x1="' + L + '" y1="' + ys(p) + '" x2="' + (W - R) + '" y2="' + ys(p) + '" stroke="#2a2a2e" stroke-width="1"/>'
@@ -751,7 +1031,7 @@ function posChart(r){
       s += '<circle cx="' + xs(p.x) + '" cy="' + ys(p.y) + '" r="4" fill="' + col + '" stroke="#1b1b1e" stroke-width="2"><title>' + esc(t.name) + ' — S' + (p.x+1) + ': P' + p.y + '</title></circle>';
     });
     var last = a[a.length - 1];
-    s += '<text x="' + (xs(last.x) + 10) + '" y="' + (ys(last.y) + 4) + '" fill="' + (t.us ? "#f2f3f5" : "#98999C") + '" font-family="Archivo,sans-serif" font-size="12">' + esc(t.name.length > 14 ? t.name.slice(0,13) + "…" : t.name) + '</text>';
+    s += '<text x="' + (xs(last.x) + 10) + '" y="' + (ys(last.y) + 4) + '" fill="' + (t.us ? "#f2f3f5" : "#98999C") + '" font-family="Inter,sans-serif" font-size="12">' + esc(t.name.length > 14 ? t.name.slice(0,13) + "…" : t.name) + '</text>';
   });
   s += '</svg></div>';
   return s;
@@ -759,42 +1039,74 @@ function posChart(r){
 
 /* ---------- ANALYSIS ---------- */
 function paneAnalysis(){
-  var r = cur(), laps = allLaps(r);
+  var r = cur(), laps = allLaps(r), m = r.meta;
   var h = '<h2>Analysis</h2>';
+  /* sessions comparison always available */
+  var sessBlock = "";
+  var anySess = r.sessions.some(function(s){ return Object.keys(s.times).some(function(d){ return s.times[d].length; }); });
+  if (anySess){
+    sessBlock += h2("Sessions — best lap per driver") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>' + r.sessions.map(function(s){ return '<th>' + esc(s.name || s.type) + '</th>'; }).join("") + '<th>Race best</th></tr></thead><tbody>';
+    r.drivers.forEach(function(d){
+      var rb = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
+      h += "";
+      sessBlock += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(d.name) + '</span></td>'
+        + r.sessions.map(function(s){ var t = s.times[d.id] || []; return '<td class="mono">' + (t.length ? fmtLap(Math.min.apply(null, t)) : "—") + '</td>'; }).join("")
+        + '<td class="mono best">' + (rb.length ? fmtLap(Math.min.apply(null, rb)) : "—") + '</td></tr>';
+    });
+    sessBlock += '</tbody></table></div>';
+  }
   if (!laps.length){
     var manual = r.stints.map(stintBest).filter(Boolean);
     h += '<p class="hint">Log laps in the Race tab (stopwatch or typed) and this page fills itself in.' + (manual.length ? ' Best recorded stint time so far: <span class="mono best">' + fmtLap(Math.min.apply(null, manual)) + '</span>.' : "") + '</p>';
-    return h;
+    return h + sessBlock;
   }
   var times = laps.map(function(l){ return l.ms; });
   var best = Math.min.apply(null, times);
   var bl = laps.find(function(l){ return l.ms === best; });
   var bd = driverById(r, bl.d);
+  var lenKm = +m.trackLen ? (m.lenUnit === "mi" ? +m.trackLen * 1.609344 : +m.trackLen) : 0;
   h += '<div class="tiles">'
-    + tile("Best lap", fmtLap(best), (bd ? esc(bd.name.split(" ")[0]) : "?") + " · S" + (bl.si+1))
+    + tile("Best lap", fmtLap(best), (bd ? esc(first(bd.name)) : "?") + " · S" + (bl.si+1))
     + tile("Average", fmtLap(mean(times)), laps.length + " laps logged")
     + tile("Consistency σ", (sdev(times) != null ? (sdev(times)/1000).toFixed(3) + "s" : "—"), "lower = steadier")
-    + tile("Stints filled", r.stints.filter(function(s){ return s.laps.length; }).length + "/" + r.meta.stints, "with lap data");
-  var tgt = parseLap(r.meta.targetLap);
+    + tile("Stints filled", r.stints.filter(function(s){ return s.laps.length; }).length + "/" + r.plan.length, "with lap data");
+  if (lenKm) h += tile("Avg speed", (lenKm / (mean(times) / 3600000)).toFixed(1) + (m.lenUnit === "mi" ? " mph" : " km/h"), "over " + (m.lenUnit === "mi" ? (lenKm/1.609344).toFixed(3) + " mi" : lenKm.toFixed(3) + " km") + " lap");
+  var tgt = parseLap(m.targetLap);
   if (tgt){
     var dv = (mean(times) - tgt) / 1000;
-    h += tile("Vs target", (dv > 0 ? "+" : "") + dv.toFixed(2) + "s", "avg vs " + fmtLap(tgt) + (r.meta.targetPos ? " · aim " + esc(r.meta.targetPos) : ""));
+    h += tile("Vs target", (dv > 0 ? "+" : "") + dv.toFixed(2) + "s", "avg vs " + fmtLap(tgt) + (m.targetPos ? " · aim " + esc(m.targetPos) : ""));
   }
   h += '</div>';
 
   /* per-driver table */
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Avg</th><th>σ (s)</th></tr></thead><tbody>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Laps</th><th>Best</th><th>Avg</th><th>σ (s)</th><th>Drive time</th></tr></thead><tbody>';
   r.drivers.forEach(function(d){
     var dl = laps.filter(function(l){ return l.d === d.id; }).map(function(l){ return l.ms; });
+    var dt = dl.reduce(function(a, b){ return a + b; }, 0);
     if (!dl.length) return;
     var col = PAL[d.c % PAL.length].ui;
     h += '<tr><td><span class="pill"><span class="dot" style="background:' + col + '"></span>' + esc(d.name) + '</span></td>'
       + '<td class="mono">' + dl.length + '</td>'
       + '<td class="mono best">' + fmtLap(Math.min.apply(null, dl)) + '</td>'
       + '<td class="mono">' + fmtLap(mean(dl)) + '</td>'
-      + '<td class="mono">' + (sdev(dl) != null ? (sdev(dl)/1000).toFixed(3) : "—") + '</td></tr>';
+      + '<td class="mono">' + (sdev(dl) != null ? (sdev(dl)/1000).toFixed(3) : "—") + '</td>'
+      + '<td class="mono">' + fmtHMS(dt) + '</td></tr>';
   });
   h += '</tbody></table></div>';
+
+  /* per-stint table */
+  h += h2("Stints") + '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Driver</th><th>' + vehLabel(r) + '</th><th>Laps</th><th>Best</th><th>Avg</th><th>&Delta; tgt</th><th>Pos</th></tr></thead><tbody>';
+  r.stints.forEach(function(s, i){
+    if (!s.laps.length && !s.d) return;
+    var d = driverById(r, s.d), av = s.laps.length ? mean(s.laps) : null;
+    h += '<tr><td class="mono">S' + (i+1) + '</td><td>' + (d ? '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].ui + '"></span>' + esc(first(d.name)) + '</span>' : "—") + '</td>'
+      + '<td class="mono">' + esc(s.kart) + '</td><td class="mono">' + s.laps.length + '</td>'
+      + '<td class="mono' + (stintBest(s) === best ? " best" : "") + '">' + fmtLap(stintBest(s)) + '</td><td class="mono">' + fmtLap(av) + '</td>'
+      + '<td class="mono">' + (tgt && av ? ((av - tgt) / 1000 > 0 ? "+" : "") + ((av - tgt) / 1000).toFixed(2) + "s" : "—") + '</td>'
+      + '<td class="mono">' + (s.ps || s.pe ? esc(s.ps || "?") + " → " + esc(s.pe || "?") : "—") + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += sessBlock;
   h += lapChart(r, laps, best);
   return h;
 }
@@ -805,19 +1117,16 @@ function lapChart(r, laps, best){
   var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
   var pad = Math.max(300, (hi - lo) * 0.08); lo -= pad; hi += pad;
   var xs = function(i){ return L + (laps.length === 1 ? 0 : i * (W - L - R) / (laps.length - 1)); };
-  // y axis = lap time; smaller (faster) sits at the top
   var ys = function(ms){ return T + (ms - lo) * (H - T - B) / (hi - lo); };
   var s = '<h2 style="margin-top:20px">Lap times</h2>';
   s += '<div class="legend">' + r.drivers.map(function(d){
-      return '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].mark + '"></span>' + esc(d.name.split(" ")[0]) + '</span>'; }).join("")
+      return '<span class="pill"><span class="dot" style="background:' + PAL[d.c % PAL.length].mark + '"></span>' + esc(first(d.name)) + '</span>'; }).join("")
     + '</div><div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Lap times across the race">';
-  /* y grid: 4 ticks */
   for (var g = 0; g <= 3; g++){
     var v = lo + (hi - lo) * g / 3, y = ys(v);
     s += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - R) + '" y2="' + y + '" stroke="#2a2a2e" stroke-width="1"/>'
       + '<text x="' + (L - 8) + '" y="' + (y + 3.5) + '" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="end">' + fmtLap(Math.round(v/100)*100) + '</text>';
   }
-  /* stint boundaries + segments */
   var idx = 0;
   r.stints.forEach(function(st, si){
     if (!st.laps.length) return;
@@ -832,7 +1141,7 @@ function lapChart(r, laps, best){
     s += '<text x="' + xs(idx + Math.max(0,(st.laps.length-1)/2)) + '" y="' + (H - 10) + '" fill="#6f7076" font-family="IBM Plex Mono,monospace" font-size="11" text-anchor="middle">S' + (si+1) + '</text>';
     idx += st.laps.length;
   });
-  s += '</svg></div><p class="hint">Smaller is better — best lap ringed. Dashed lines mark stint changes (and kart changes with them): a step up after a swap usually means the kart, not the driver.</p>';
+  s += '</svg></div><p class="hint">Smaller is better — best lap ringed. Dashed lines mark stint changes' + (r.meta.vehicleSwap === "yes" ? " (and " + vehLabel(r).toLowerCase() + " changes with them): a step after a swap usually means the " + vehLabel(r).toLowerCase() + ", not the driver" : ": a step after a stop usually means tyres, fuel load, or traffic") + '.</p>';
   return s;
 }
 
@@ -846,12 +1155,12 @@ function render(){
   pane.hidden = home;
   if (!home) pane.innerHTML = tab === "setup" ? paneSetup()
     : tab === "strategy" ? paneStrategy()
-    : tab === "quali" ? paneQuali()
+    : tab === "sessions" ? paneSessions()
     : tab === "race" ? paneRace()
     : tab === "map" ? paneMap()
     : tab === "rivals" ? paneRivals()
     : paneAnalysis();
-  var bgKey = {home:"home", setup:"setup", strategy:"strategy", quali:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration"}[tab];
+  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration"}[tab];
   var feed = document.getElementById("feedMon");
   if (home){
     feed.hidden = true;
@@ -861,11 +1170,11 @@ function render(){
     feed.hidden = false;
     var fi = document.getElementById("feedImg");
     if (GIF_PICK[bgKey] && fi.getAttribute("src") !== GIF_PICK[bgKey]) fi.src = GIF_PICK[bgKey];
-    document.getElementById("feedLabel").textContent = "LIVE \u00b7 " + bgKey.toUpperCase();
+    document.getElementById("feedLabel").textContent = "LIVE · " + bgKey.toUpperCase();
   }
   var r0 = cur(), laps0 = allLaps(r0).length;
-  document.getElementById("sbRace").textContent = (r0.meta.event || "race").toUpperCase() + (r0.meta.track ? " \u00b7 " + r0.meta.track.toUpperCase() : "");
-  document.getElementById("sbInfo").textContent = r0.meta.stints + " x " + r0.meta.stintMin + "MIN \u00b7 " + r0.drivers.length + " DRIVERS \u00b7 " + laps0 + " LAPS LOGGED";
+  document.getElementById("sbRace").textContent = (r0.meta.event || "race").toUpperCase() + (r0.meta.track ? " · " + r0.meta.track.toUpperCase() : "") + (r0.meta.location ? " — " + r0.meta.location.toUpperCase() : "");
+  document.getElementById("sbInfo").textContent = formatSummary(r0) + " · " + r0.drivers.length + " DRIVERS · " + laps0 + " LAPS LOGGED";
   save();
 }
 
@@ -878,19 +1187,18 @@ document.getElementById("raceSel").addEventListener("change", function(e){
 });
 function doNewRace(){
   var id = uid(), src = cur();
-  store.races[id] = {
-    meta:{ name:src.meta.name, event:"New race", track:"", date:"", green:"", stints:9, stintMin:20, link:"", notes:"" },
-    drivers: src.drivers.map(function(d){ return {id:d.id, name:d.name, c:d.c}; }),
-    quali:{times:{}, grid:""}, stints:[], rivals:[], ourPos:[]
-  };
-  normalize(store.races[id]);
+  var tplSel = document.getElementById("newTpl"), tplKey = tplSel ? tplSel.value : "kart";
+  var tpl = TEMPLATES.find(function(t){ return t[0] === tplKey; }) || TEMPLATES[0];
+  var r = blankRace(tpl[2], src);
+  r.meta.event = "New race";
+  store.races[id] = r; normalize(r);
   store.currentId = id; tab = "setup"; openStint = -1; stopTimers(); render();
 }
 function doExport(){
   var blob = new Blob([JSON.stringify(store, null, 1)], {type:"application/json"});
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "racing-manager-" + new Date().toISOString().slice(0,10) + ".json";
+  a.download = "pitwall-" + new Date().toISOString().slice(0,10) + ".json";
   document.body.appendChild(a); a.click(); a.remove();
 }
 document.getElementById("importFile").addEventListener("change", function(e){
@@ -903,7 +1211,7 @@ document.getElementById("importFile").addEventListener("change", function(e){
       if (!confirm("Import " + Object.keys(inc.races).length + " race(s)? Same-ID races will be overwritten by the file.")) return;
       Object.keys(inc.races).forEach(function(id){ store.races[id] = inc.races[id]; normalize(store.races[id]); });
       render();
-    } catch(err){ alert("Could not read that file as a Racing Manager export."); }
+    } catch(err){ alert("Could not read that file as a Pitwall export."); }
   };
   rd.readAsText(f);
   e.target.value = "";
@@ -911,26 +1219,44 @@ document.getElementById("importFile").addEventListener("change", function(e){
 
 /* pane delegation */
 var paneEl = document.getElementById("pane");
+function ckById(r, id){ return r.checklist.find(function(c){ return c.id === id; }); }
+function sessById(r, id){ return r.sessions.find(function(s){ return s.id === id; }); }
 paneEl.addEventListener("change", function(e){
   var t = e.target, r = cur(), a;
   if ((a = t.getAttribute("data-meta")) != null){
-    r.meta[a] = t.type === "number" ? +t.value : t.value;
-    if (a === "stints" || a === "stintMin"){ normalize(r); stopTimers(); }
+    r.meta[a] = t.type === "number" ? (t.value === "" ? "" : +t.value) : t.value;
+    if (FORMAT_KEYS.indexOf(a) >= 0 || a === "targetLap"){ normalize(r); stopTimers(); }
     render();
   }
+  else if ((a = t.getAttribute("data-plen"))) { r.plan[+a].len = Math.max(1, +t.value || 1); normalize(r); render(); }
   else if ((a = t.getAttribute("data-drv"))) { var d = driverById(r, a); if (d) d.name = t.value; render(); }
   else if ((a = t.getAttribute("data-drvc"))) { var d2 = driverById(r, a); if (d2) d2.c = +t.value; render(); }
-  else if ((a = t.getAttribute("data-grid")) != null || t.hasAttribute("data-grid")) { r.quali.grid = t.value; save(); }
+  else if ((a = t.getAttribute("data-drvw"))) { var d3 = driverById(r, a); if (d3) d3.weight = t.value; render(); }
+  else if ((a = t.getAttribute("data-drvl"))) { var d4 = driverById(r, a); if (d4) d4.licence = t.value; save(); }
+  else if ((a = t.getAttribute("data-drvn"))) { var d5 = driverById(r, a); if (d5) d5.notes = t.value; save(); }
+  else if ((a = t.getAttribute("data-ckt"))) { var c1 = ckById(r, a); if (c1) c1.text = t.value; save(); }
+  else if ((a = t.getAttribute("data-ckd"))) { var c2 = ckById(r, a); if (c2) c2.due = t.value; render(); }
+  else if ((a = t.getAttribute("data-ckdone"))) { var c3 = ckById(r, a); if (c3) c3.done = t.checked; render(); }
+  else if ((a = t.getAttribute("data-scond"))) { var s1 = sessById(r, a); if (s1) s1.cond = t.value; save(); }
+  else if ((a = t.getAttribute("data-snote"))) { var s2 = sessById(r, a); if (s2) s2.notes = t.value; save(); }
   else if ((a = t.getAttribute("data-sd"))) { r.stints[+a].d = t.value; render(); }
   else if ((a = t.getAttribute("data-sk"))) { r.stints[+a].kart = t.value; save(); }
   else if ((a = t.getAttribute("data-sps"))) { r.stints[+a].ps = t.value; save(); }
   else if ((a = t.getAttribute("data-spe"))) { r.stints[+a].pe = t.value; save(); }
   else if ((a = t.getAttribute("data-sb"))) { r.stints[+a].best = t.value; save(); }
   else if ((a = t.getAttribute("data-sn"))) { r.stints[+a].notes = t.value; save(); }
+  else if ((a = t.getAttribute("data-sst"))) { r.stints[+a].start = t.value; save(); }
+  else if ((a = t.getAttribute("data-sp"))) { r.stints[+a].pit = t.value; save(); }
+  else if ((a = t.getAttribute("data-sf"))) { r.stints[+a].fuel = t.value; save(); }
+  else if ((a = t.getAttribute("data-st"))) { r.stints[+a].tyres = t.value; save(); }
+  else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; save(); }
   else if ((a = t.getAttribute("data-op"))) { r.ourPos[+a] = t.value; render(); }
   else if ((a = t.getAttribute("data-rvn"))) { r.rivals[+a].name = t.value; render(); }
+  else if ((a = t.getAttribute("data-rvno"))) { r.rivals[+a].no = t.value; save(); }
+  else if ((a = t.getAttribute("data-rvc"))) { r.rivals[+a].cls = t.value; save(); }
   else if ((a = t.getAttribute("data-rp"))) { var pr = a.split(":"); r.rivals[+pr[0]].pos[+pr[1]] = t.value; render(); }
   else if (t.id === "swStint") { sw.stint = +t.value; }
+  else if (t.id === "cdStint") { cd.stint = +t.value; cd.running = false; render(); }
 });
 paneEl.addEventListener("click", function(e){
   var t = e.target.closest("button"); if (!t) return;
@@ -938,42 +1264,60 @@ paneEl.addEventListener("click", function(e){
   if (t.id === "newRace") doNewRace();
   else if (t.id === "exportBtn") doExport();
   else if (t.id === "importBtn") document.getElementById("importFile").click();
-  else if (t.id === "addDrv"){ r.drivers.push({id:uid(), name:"Driver " + (r.drivers.length+1), c:r.drivers.length % PAL.length}); render(); }
+  else if (t.id === "addDrv"){ r.drivers.push({id:uid(), name:"Driver " + (r.drivers.length+1), c:r.drivers.length % PAL.length, weight:"", licence:"", notes:""}); render(); }
   else if ((a = t.getAttribute("data-deldrv"))){
-    if (!confirm("Remove this driver? Their quali times are removed too (stint assignments are kept).")) return;
+    if (!confirm("Remove this driver? Their session times are removed too (stint assignments are kept).")) return;
     r.drivers = r.drivers.filter(function(d){ return d.id !== a; });
-    delete r.quali.times[a]; render();
+    r.sessions.forEach(function(s){ delete s.times[a]; }); render();
   }
+  else if (t.id === "ckAdd") addCheck();
+  else if ((a = t.getAttribute("data-ckdel"))){ r.checklist = r.checklist.filter(function(c){ return c.id !== a; }); render(); }
   else if (t.id === "delRace"){
     if (Object.keys(store.races).length === 1) { alert("This is the only race — create another one first."); return; }
     if (!confirm('Delete "' + (r.meta.event || r.meta.name) + '" and all its data? This cannot be undone.')) return;
     delete store.races[store.currentId];
     store.currentId = Object.keys(store.races)[0]; stopTimers(); render();
   }
+  else if (t.id === "sessAdd"){
+    var ty = document.getElementById("sessType").value, nmS = document.getElementById("sessName").value.trim();
+    var same = r.sessions.filter(function(s){ return s.type === ty; }).length;
+    var tn = (SESSION_TYPES.find(function(x){ return x[0] === ty; }) || ["", ty])[1];
+    r.sessions.push({id:uid(), type:ty, name:nmS || (tn + (same ? " " + (same + 1) : "")), cond:"", notes:"", times:{}}); render();
+  }
+  else if ((a = t.getAttribute("data-sdel"))){
+    var sx = sessById(r, a), cnt = sx ? Object.keys(sx.times).reduce(function(n, d){ return n + sx.times[d].length; }, 0) : 0;
+    if (cnt && !confirm("Remove this session and its " + cnt + " lap times?")) return;
+    r.sessions = r.sessions.filter(function(s){ return s.id !== a; }); normalize(r); render();
+  }
   else if ((a = t.getAttribute("data-qbtn"))) addQuali(a);
-  else if ((a = t.getAttribute("data-qdel"))){ var q = a.split(":"); r.quali.times[q[0]].splice(+q[1], 1); render(); }
+  else if ((a = t.getAttribute("data-qdel"))){ var q = a.split(":"); var sq = sessById(r, q[0]); if (sq) sq.times[q[1]].splice(+q[2], 1); render(); }
   else if ((a = t.getAttribute("data-open"))){ openStint = openStint === +a ? -1 : +a; render(); }
   else if ((a = t.getAttribute("data-lbtn"))) addLap(+a);
   else if ((a = t.getAttribute("data-ldel"))){ var p = a.split(":"); r.stints[+p[0]].laps.splice(+p[1], 1); render(); }
+  else if (t.id === "logAdd") addLog();
+  else if ((a = t.getAttribute("data-logdel"))){ r.log.splice(+a, 1); render(); }
   else if (t.id === "rivAdd"){
     var nm = document.getElementById("rivName").value.trim(); if (!nm) return;
-    var rv = {name:nm, pos:[]}; r.rivals.push(rv); normalize(r); render();
+    r.rivals.push({name:nm, no:"", cls:"", pos:[]}); normalize(r); render();
   }
   else if ((a = t.getAttribute("data-rvdel"))){ r.rivals.splice(+a, 1); render(); }
   else if ((a = t.getAttribute("data-plan")) != null && t.classList.contains("plan-cell")){
     var si = +a, ids = [""].concat(r.drivers.map(function(d){ return d.id; }));
-    var at = ids.indexOf(r.plan[si]);
-    r.plan[si] = ids[(at + 1) % ids.length];
+    var at = ids.indexOf(r.plan[si].d);
+    r.plan[si].d = ids[(at + 1) % ids.length];
     render();
   }
   else if ((a = t.getAttribute("data-preset")) != null){
     var start = +a, nd = r.drivers.length;
-    r.plan = r.plan.map(function(_, i){ return nd ? r.drivers[(start + i) % nd].id : ""; });
+    r.plan.forEach(function(p, i){ p.d = nd ? r.drivers[(start + i) % nd].id : ""; });
     render();
   }
-  else if (t.id === "planClear"){ r.plan = r.plan.map(function(){ return ""; }); render(); }
+  else if ((a = t.getAttribute("data-build")) != null){ buildPlan(r, +a); render(); }
+  else if (t.id === "planAddStint"){ r.plan.push({d:"", len:r.plan[r.plan.length-1].len}); normalize(r); render(); }
+  else if (t.id === "planDelStint"){ if (r.plan.length > 1){ r.plan.pop(); normalize(r); render(); } }
+  else if (t.id === "planClear"){ r.plan.forEach(function(p){ p.d = ""; }); render(); }
   else if (t.id === "planApply"){
-    r.plan.forEach(function(id, i){ if (id && driverById(r, id)) r.stints[i].d = id; });
+    r.plan.forEach(function(p, i){ if (p.d && driverById(r, p.d)) r.stints[i].d = p.d; });
     tab = "race"; render();
   }
   else if (t.id === "cdStart") startCountdown();
@@ -983,7 +1327,7 @@ paneEl.addEventListener("click", function(e){
     var now = Date.now(), ms = now - sw.lastLap; sw.lastLap = now;
     cur().stints[sw.stint].laps.push(ms); save();
     document.getElementById("swLast").textContent = "lap " + fmtLap(ms);
-    var tbl = tab === "race"; if (tbl && openStint === sw.stint) render();
+    if (tab === "race" && openStint === sw.stint) render();
   }
   else if (t.id === "swStop"){ sw.running = false; render(); }
 });
@@ -992,15 +1336,18 @@ paneEl.addEventListener("keydown", function(e){
   var t = e.target, a;
   if ((a = t.getAttribute("data-qadd"))) { e.preventDefault(); addQuali(a); }
   else if ((a = t.getAttribute("data-ladd"))) { e.preventDefault(); addLap(+a); }
+  else if (t.id === "logNote") { e.preventDefault(); addLog(); }
+  else if (t.id === "ckNew") { e.preventDefault(); addCheck(); }
+  else if (t.id === "rivName") { e.preventDefault(); document.getElementById("rivAdd").click(); }
 });
-function addQuali(driverId){
-  var inp = paneEl.querySelector('[data-qadd="' + driverId + '"]');
+function addQuali(key){
+  var inp = paneEl.querySelector('[data-qadd="' + key + '"]');
   var ms = parseLap(inp.value);
   if (ms == null){ inp.select(); return; }
-  var r = cur();
-  (r.quali.times[driverId] = r.quali.times[driverId] || []).push(ms);
+  var r = cur(), k = key.split(":"), s = sessById(r, k[0]); if (!s) return;
+  (s.times[k[1]] = s.times[k[1]] || []).push(ms);
   render();
-  var again = paneEl.querySelector('[data-qadd="' + driverId + '"]'); if (again) again.focus();
+  var again = paneEl.querySelector('[data-qadd="' + key + '"]'); if (again) again.focus();
 }
 function addLap(si){
   var inp = paneEl.querySelector('[data-ladd="' + si + '"]');
@@ -1009,41 +1356,51 @@ function addLap(si){
   cur().stints[si].laps.push(ms); render();
   var again = paneEl.querySelector('[data-ladd="' + si + '"]'); if (again) again.focus();
 }
+function addLog(){
+  var kind = document.getElementById("logKind").value, note = document.getElementById("logNote").value.trim();
+  cur().log.push({t:nowClock(), kind:kind, note:note}); render();
+  var again = document.getElementById("logNote"); if (again) again.focus();
+}
+function addCheck(){
+  var txt = document.getElementById("ckNew").value.trim(), due = document.getElementById("ckDue").value; if (!txt) return;
+  cur().checklist.push({id:uid(), text:txt, due:due, done:false}); render();
+  var again = document.getElementById("ckNew"); if (again) again.focus();
+}
 
 /* ---------- timers ---------- */
-var tick = null;
 function stopTimers(){ cd.running = false; sw.running = false; }
 function startCountdown(){
+  var r = cur(), len = unitsToMs(r, +r.plan[cd.stint].len || 0); if (!len) return;
   cd.running = true;
-  cd.endAt = Date.now() + cur().meta.stintMin * 60000;
+  cd.endAt = Date.now() + len;
   render();
 }
 setInterval(function(){
   var sc = document.getElementById("sbClock");
-  if (sc) sc.textContent = new Date().toTimeString().slice(0,8);
+  if (sc) sc.textContent = nowClock();
   if (tab === "map"){
     var rM = cur(), rsM = raceState(rM);
     var ckM = document.getElementById("cmvClock");
     if (ckM) ckM.textContent = rsM.live || rsM.done ? fmtHMS(rsM.elapsed) : (rsM.pre != null ? "T-" + fmtHMS(rsM.pre) : "--:--:--");
     var stM = document.getElementById("cmvStint");
-    if (stM && rsM.live) stM.textContent = "STINT " + rsM.stint + "/" + rM.meta.stints;
+    if (stM && rsM.live) stM.textContent = "STINT " + rsM.stint + "/" + rM.plan.length;
     var nl = document.getElementById("pwNow");
     if (nl && rsM.live){
       nl.setAttribute("visibility","visible");
-      nl.setAttribute("transform","translate(" + (30 + (rsM.elapsed/60000)/(rM.meta.stints*rM.meta.stintMin)*(720-30-14)).toFixed(1) + ",0)");
+      nl.setAttribute("transform","translate(" + (30 + (rsM.elapsed / rsM.total) * (720-30-14)).toFixed(1) + ",0)");
     }
   }
   if (tab !== "race") return;
   var face = document.getElementById("cdFace"), pr = document.getElementById("cdPrompt");
   if (face && cd.running){
-    var remS = (cd.endAt - Date.now()) / 1000;
+    var remS = (cd.endAt - Date.now()) / 1000, via = cur().meta.radios === "yes" ? "RADIO" : "BOARD";
     face.textContent = fmtClock(remS);
     face.className = "clockface" + (remS <= 60 ? " crit" : remS <= 180 ? " warn" : "");
     var msg = "", crit = false;
-    if (remS <= 0){ msg = "STINT OVER — ROTATE"; crit = true; if (remS < -0.5) cd.running = false; }
-    else if (remS <= 60){ msg = "BOARD: IN NOW"; crit = true; }
-    else if (remS <= 180){ msg = "BOARD: 3 MIN — next driver walks"; }
-    else if (remS <= 300){ msg = "BOARD: 5 MIN"; }
+    if (remS <= 0){ msg = "STINT OVER — " + (cur().meta.stintMode === "none" ? "CHEQUERED" : "PIT NOW"); crit = true; if (remS < -0.5) cd.running = false; }
+    else if (remS <= 60){ msg = via + ": IN NOW"; crit = true; }
+    else if (remS <= 180){ msg = via + ": 3 MIN — next driver ready"; }
+    else if (remS <= 300){ msg = via + ": 5 MIN"; }
     pr.textContent = msg;
     pr.className = "board-prompt" + (crit ? " crit" : "");
   }
