@@ -216,29 +216,31 @@
   .wrap{position:relative;z-index:1}
   .wrap header,.wrap footer{text-shadow:0 1px 10px rgba(0,0,0,.55)}
 
-  /* Load intro, in the manner of the Netflix opener: hold on black, ribbons of light fan out behind the mark, push-in, bloom, cut */
-  #intro{position:fixed;inset:0;z-index:100;overflow:hidden;background:#000;pointer-events:none}
+  /* Load intro, in the manner of the Netflix opener: hold on black, ribbons of light burst behind the mark, push-in, bloom, cut.
+     Only transform and opacity animate, on promoted layers, so it stays smooth. */
+  #intro{position:fixed;inset:0;z-index:100;overflow:hidden;background:#000;pointer-events:none;contain:strict}
   #intro .stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-  #intro img{width:clamp(110px,15vw,190px);height:clamp(110px,15vw,190px);object-fit:contain;transform:translateX(-10%);opacity:0;
-    filter:drop-shadow(0 0 24px rgba(52,227,111,.0))}
-  #intro .rib{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0}
-  #intro .rib i{position:absolute;left:-5px;top:0;width:10px;height:120vmax;transform-origin:50% 0;border-radius:6px;
-    background:linear-gradient(180deg,var(--c) 0%,var(--c) 35%,transparent 100%);opacity:.85;filter:blur(.6px);transform:rotate(var(--a)) scaleY(0)}
-  #intro .bloom{position:absolute;inset:0;background:radial-gradient(closest-side at 50% 50%,rgba(255,255,255,.95),rgba(52,227,111,.35) 45%,transparent 75%);opacity:0}
-  #intro.play img{animation:inMark 2.6s cubic-bezier(.2,.7,.2,1) forwards}
-  #intro.play .rib{animation:inRibs 2.6s ease forwards}
+  #intro img{width:clamp(110px,15vw,190px);height:clamp(110px,15vw,190px);object-fit:contain;transform:translateX(-10%) scale(.55);opacity:0;will-change:transform,opacity}
+  #intro .glow{position:absolute;left:50%;top:50%;width:46vmin;height:46vmin;margin:-23vmin 0 0 -23vmin;border-radius:50%;opacity:0;will-change:opacity;
+    background:radial-gradient(closest-side,rgba(52,227,111,.35),rgba(52,227,111,0))}
+  #intro .rib{position:absolute;left:50%;top:50%;width:0;height:0}
+  #intro .rib i{position:absolute;left:-4px;top:0;width:8px;height:100vmax;transform-origin:50% 0;border-radius:4px;opacity:0;will-change:transform,opacity;
+    background:linear-gradient(180deg,var(--c) 0%,var(--c) 30%,transparent 100%);transform:rotate(var(--a)) scaleY(0)}
+  #intro .bloom{position:absolute;inset:0;opacity:0;will-change:opacity;background:radial-gradient(closest-side at 50% 50%,rgba(255,255,255,.95),rgba(52,227,111,.35) 45%,transparent 75%)}
+  #intro.play img{animation:inMark 2.6s cubic-bezier(.25,.6,.2,1) forwards}
+  #intro.play .glow{animation:inGlow 2.6s ease forwards}
   #intro.play .rib i{animation:inRib 2.6s cubic-bezier(.3,0,.2,1) forwards}
   #intro.play .bloom{animation:inBloom 2.6s ease forwards}
   #intro.play{animation:inOut 2.6s ease forwards}
-  @keyframes inMark{0%{opacity:0;transform:translateX(-10%) scale(.55)} 14%{opacity:1;transform:translateX(-10%) scale(1)} 55%{opacity:1;transform:translateX(-10%) scale(1.04);filter:drop-shadow(0 0 30px rgba(52,227,111,.55))} 100%{opacity:0;transform:translateX(-10%) scale(26)}}
-  @keyframes inRibs{0%,42%{opacity:0} 50%{opacity:1} 100%{opacity:0}}
-  @keyframes inRib{0%,44%{transform:rotate(var(--a)) scaleY(0)} 72%{transform:rotate(var(--a)) scaleY(1)} 100%{transform:rotate(var(--a)) scaleY(1.6) translateY(-30%)}}
+  @keyframes inMark{0%{opacity:0;transform:translateX(-10%) scale(.55)} 14%{opacity:1;transform:translateX(-10%) scale(1)} 58%{opacity:1;transform:translateX(-10%) scale(1.04)} 90%{opacity:0;transform:translateX(-10%) scale(9)} 100%{opacity:0;transform:translateX(-10%) scale(9)}}
+  @keyframes inGlow{0%,20%{opacity:0} 55%{opacity:1} 100%{opacity:0}}
+  @keyframes inRib{0%,44%{opacity:0;transform:rotate(var(--a)) scaleY(0)} 50%{opacity:.85} 72%{opacity:.85;transform:rotate(var(--a)) scaleY(1)} 100%{opacity:0;transform:rotate(var(--a)) scaleY(1.5)}}
   @keyframes inBloom{0%,70%{opacity:0} 86%{opacity:1} 100%{opacity:0}}
   @keyframes inOut{0%,88%{opacity:1} 100%{opacity:0}}
   #intro.gone{display:none}
-  body.intro .wrap{opacity:0;transform:scale(1.06);transform-origin:50% 42%}
-  body.intro-go .wrap{opacity:1;transform:none;transition:opacity .5s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
-  @media (prefers-reduced-motion:reduce){#intro{display:none} body.intro .wrap{opacity:1;transform:none}}
+  body.intro .wrap{opacity:0}
+  body.intro-go .wrap{opacity:1;transition:opacity .6s ease}
+  @media (prefers-reduced-motion:reduce){#intro{display:none} body.intro .wrap{opacity:1}}
 
   /* Home */
   .hs-id{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,1.8vh,18px);text-shadow:0 1px 10px rgba(0,0,0,.5)}
@@ -250,7 +252,7 @@
 </style>
 </head>
 <body>
-<div id="intro" aria-hidden="true"><div class="rib"></div><div class="stage"><img src="assets/logo.png?v=3" alt=""></div><div class="bloom"></div></div>
+<div id="intro" aria-hidden="true"><div class="glow"></div><div class="rib"></div><div class="stage"><img src="assets/logo.png?v=3" alt=""></div><div class="bloom"></div></div>
 <div id="bgStage" aria-hidden="true"><canvas id="bgCanvas"></canvas></div>
 <div class="wrap">
 
@@ -1696,7 +1698,7 @@ function render(){
   document.getElementById("deck").hidden = home;
   if (!PHASES[tab] && !home) tab = "setup";
   if (!home) pane.innerHTML = cardify(PHASES[tab].map(function(fn){ return window[fn](); }).join(""));
-  if (home) bgStart(HOME_CLIP); else bgStop();
+  if (home && !document.body.classList.contains("intro")) bgStart(HOME_CLIP); else if (!home) bgStop();
   save();
 }
 
@@ -1982,16 +1984,16 @@ load(); render();
 (function(){
   var el = document.getElementById("intro"), reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!el || reduce){ if (el) el.classList.add("gone"); return; }
-  /* ribbons: 20 bars bursting around the mark in the site's green, purple and white */
+  /* ribbons: 14 bars bursting around the mark in the site's green, purple and white */
   var cols = ["#34e36f","#8b5cf6","#ffffff","#7cf0a2","#c4b5fd","#34e36f","#8b5cf6"], rib = el.querySelector(".rib"), html = "";
-  for (var i = 0; i < 20; i++){ var a = i * 18 + (i % 2 ? 5 : -4); html += '<i style="--a:' + a.toFixed(1) + 'deg;--c:' + cols[i % cols.length] + ';animation-delay:' + (i % 5) * 30 + 'ms;left:' + (-5 + (i % 3) * 2) + 'px"></i>'; }
+  for (var i = 0; i < 14; i++){ var a = i * (360 / 14) + (i % 2 ? 6 : -5); html += '<i style="--a:' + a.toFixed(1) + 'deg;--c:' + cols[i % cols.length] + ';animation-delay:' + (i % 4) * 35 + 'ms"></i>'; }
   rib.innerHTML = html;
   document.body.classList.add("intro");
   var img = el.querySelector("img");
   setTimeout(function(){
     el.classList.add("play");
     setTimeout(function(){ document.body.classList.add("intro-go"); }, 2150);   /* cut to the page as the bloom peaks */
-    setTimeout(function(){ el.classList.add("gone"); document.body.classList.remove("intro", "intro-go"); }, 2700);
+    setTimeout(function(){ el.classList.add("gone"); document.body.classList.remove("intro", "intro-go"); if (tab === "home") bgStart(HOME_CLIP); }, 2700);
   }, img && !img.complete ? 350 : 200);
 })();
 </script>
