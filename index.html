@@ -90,29 +90,19 @@
   .tabs button.on{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
   .home-hero{min-height:calc(100vh - 200px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(30px,7vh,64px);text-align:center;padding:24px 0}
 
-  /* Deck: a slim window rail on the left, windows tiled across the width */
-  #deck{display:grid;grid-template-columns:68px minmax(0,1fr);gap:2px;align-items:start;margin:12px 0 26px}
-  #rail{position:sticky;top:8px;display:flex;flex-direction:column;gap:2px;padding:4px;border-radius:0;
-    background:var(--panel);border:1px solid var(--line);box-shadow:none}
-  #rail button{width:58px;min-height:44px;padding:5px 0;border-radius:2px;border:0;box-shadow:none;background:transparent;color:var(--ink-dim);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
-  #rail button small{font-size:8px;line-height:1.15;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-faint);max-width:52px;max-height:2.3em;overflow:hidden;text-align:center;white-space:normal}
-  #rail button:hover{background:#1c2127;color:#fff}
-  #rail button.on{background:#232930;color:#fff;box-shadow:inset 2px 0 0 var(--accent)}
-  #rail button.on small{color:var(--accent)}
+  /* Deck: windows tiled across the width */
+  #deck{margin:12px 0 26px}
   section.pane{background:none;border:0;padding:0;margin:0;box-shadow:none;
     display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:2px;align-items:stretch}
   /* Windows: glass panel with a compact title bar; click the bar to roll it up */
   .card{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:0 10px 10px;margin:0;min-width:0;box-shadow:none}
   .card.wide{grid-column:1/-1}
-  .zone,.rail-zone{display:none}
+  .zone{display:none}
   .card h3.sub{font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin:18px 0 6px}
   .card h2{display:flex;align-items:center;gap:8px;margin:0 -10px 10px !important;padding:4px 10px;border:0;border-bottom:1px solid var(--line);
     background:var(--bar);border-radius:0;min-height:24px;
     font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.01em;text-transform:none;color:#dfe3e8}
   .card h2::before{content:"";width:6px;height:6px;border-radius:1px;background:var(--accent);flex:none}
-  .card.flash{box-shadow:inset 0 0 0 1px var(--accent)}
-  @media (max-width:900px){#deck{grid-template-columns:1fr}#rail{display:none}}
   .hint{color:var(--ink-faint);font-size:13px;max-width:75ch}
 
   .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 16px}
@@ -241,7 +231,7 @@
     <h1 class="hs-h1">Pitwall</h1>
   </div>
 </main>
-<div id="deck" hidden><aside id="rail" aria-label="Windows on this page"></aside><section class="pane" id="pane"></section></div>
+<div id="deck" hidden><section class="pane" id="pane"></section></div>
 
 <footer id="appFoot">
   <div>Data stays on this device (localStorage) &mdash; use Export/Import to sync phones</div>
@@ -559,7 +549,7 @@ var openStint = -1;
 var sw = { running:false, t0:0, lastLap:0, stint:0, splits:[] };  // stopwatch
 var serName = "";                                        // series shown in the Series tab
 var cd = { running:false, endAt:0, stint:0 };           // countdown
-/* four phases of a race weekend; the rail inside each page lists its windows */
+/* four phases of a race weekend */
 var TABS = [["setup","Setup"],["plan","Plan"],["race","Race"],["review","Review"]];
 var PHASES = { setup:["paneSetup"], plan:["paneStrategy","paneSessions"], race:["paneRace","paneMap","paneRaceLog","paneRivals","paneTiming"], review:["paneAnalysis","paneSeries"] };
 
@@ -1485,13 +1475,6 @@ function render(){
   document.getElementById("deck").hidden = home;
   if (!PHASES[tab] && !home) tab = "setup";
   if (!home) pane.innerHTML = cardify(PHASES[tab].map(function(fn){ return window[fn](); }).join(""));
-  if (!home){
-    document.getElementById("rail").innerHTML = Array.prototype.map.call(pane.querySelectorAll(".zone, .card > h2"), function(h){
-      if (h.classList.contains("zone")) return '<span class="rail-zone" title="' + esc(h.textContent) + '"></span>';
-      var t = h.textContent.replace(/\s+/g, " ").trim(), w = t.split(" "), ab = (w.length > 1 && w[1].length > 1 ? w[0][0] + w[1][0] : t.slice(0, 2)).toUpperCase();
-      return '<button data-win="' + h.parentNode.id + '" title="' + esc(t) + '">' + esc(ab) + '<small>' + esc(t.replace(/\s*[·—-].*$/, "").replace(/&amp;/g, "&")) + '</small></button>';
-    }).join("").replace(/^<span class="rail-zone"[^>]*><\/span>/, "");
-  }
   if (home) bgStart(HOME_CLIP); else bgStop();
   save();
 }
@@ -1583,13 +1566,6 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-rp"))) { var pr = a.split(":"); r.rivals[+pr[0]].pos[+pr[1]] = t.value; render(); }
   else if (t.id === "swStint") { sw.stint = +t.value; }
   else if (t.id === "cdStint") { cd.stint = +t.value; cd.running = false; render(); }
-});
-document.getElementById("rail").addEventListener("click", function(e){
-  var b = e.target.closest("[data-win]"); if (!b) return;
-  var w = document.getElementById(b.getAttribute("data-win")); if (!w) return;
-  w.scrollIntoView({behavior:"smooth", block:"start"});
-  Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function(x){ x.classList.toggle("on", x === b); });
-  w.classList.add("flash"); setTimeout(function(){ w.classList.remove("flash"); }, 900);
 });
 paneEl.addEventListener("click", function(e){
   var t = e.target.closest("button"); if (!t) return;
