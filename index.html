@@ -217,6 +217,15 @@
   /* Home background (canvas-painted video) and the corner feed */
   #bgStage{position:fixed;inset:0;z-index:0;pointer-events:none}
   #bgStage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;filter:blur(1.6px) saturate(1.04);transform:scale(1.02)}
+  #ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  #ambient img{display:block;width:100%;height:62vh;object-fit:cover;transform:scale(1.25);
+    filter:blur(72px) saturate(1.6) brightness(.75);opacity:.4;
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 45%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 45%,transparent 100%)}
+  .card.feed{padding-bottom:0;overflow:hidden}
+  .card.feed h2{margin-bottom:0 !important}
+  .card.feed img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#0b0d10}
+  .card.feed.min img{display:none}
+  .fm-btn,.card.feed .fm-btn{margin-left:auto;padding:2px 8px;font-size:10px;font-weight:500;letter-spacing:.02em;text-transform:none;border-radius:7px;line-height:1.4}
   #feedMon{position:fixed;right:14px;bottom:14px;z-index:5;width:224px;border-radius:14px;border:1px solid var(--line);
     background:var(--glass);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45)}
   .fm-bar{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid rgba(255,255,255,.06);
@@ -238,7 +247,8 @@
 </head>
 <body>
 <div id="bgStage" aria-hidden="true"><canvas id="bgCanvas"></canvas></div>
-<div id="feedMon" hidden><div class="fm-bar"><span class="fm-sq"></span><span id="feedLabel">LIVE</span></div><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
+<div id="ambient" aria-hidden="true" hidden><img id="ambImg" alt=""></div>
+<div id="feedMon" hidden><div class="fm-bar"><span class="fm-sq"></span><span id="feedLabel">LIVE</span><button class="fm-btn" id="feedDock" title="Dock into the page">Dock</button></div><img id="feedImg" alt="" onerror="this.parentElement.style.display='none'" onload="this.parentElement.style.display=''"></div>
 <div class="wrap">
 
 <header>
@@ -573,6 +583,8 @@ function bgStop(){
   bgCanvas.style.display = "none";
 }
 window.addEventListener("resize", function(){ if (tab === "home") bgSize(); });
+var feedMode = "tile";   /* "tile" = live window docked in the page grid, "corner" = floating monitor */
+try { feedMode = localStorage.getItem("pw-feed-mode") || "tile"; } catch(e){}
 var GIF_PICK = {};
 Object.keys(GIFS).forEach(function(k){ GIF_PICK[k] = GIFS[k][Math.floor(Math.random() * GIFS[k].length)]; });
 function tgtPill(avgMs){
@@ -1517,14 +1529,27 @@ function render(){
   var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", timing:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
   var feed = document.getElementById("feedMon");
   if (home){
-    feed.hidden = true;
+    feed.hidden = true; document.getElementById("ambient").hidden = true;
     if (GIF_PICK.home) bgStart(GIF_PICK.home);
   } else {
     bgStop();
-    feed.hidden = false;
-    var fi = document.getElementById("feedImg");
-    if (GIF_PICK[bgKey] && fi.getAttribute("src") !== GIF_PICK[bgKey]) fi.src = GIF_PICK[bgKey];
-    document.getElementById("feedLabel").textContent = "LIVE · " + bgKey.toUpperCase();
+    var src = GIF_PICK[bgKey] || "", label = "Live · " + bgKey;
+    /* ambient wash: the page's clip, blurred into the background behind the top of the page */
+    var amb = document.getElementById("ambient"), ai = document.getElementById("ambImg");
+    amb.hidden = !src; if (src && ai.getAttribute("src") !== src) ai.src = src;
+    feed.hidden = feedMode !== "corner" || !src;
+    if (feedMode === "corner"){
+      var fi = document.getElementById("feedImg");
+      if (src && fi.getAttribute("src") !== src) fi.src = src;
+      document.getElementById("feedLabel").textContent = label.toUpperCase();
+    } else if (src){
+      /* docked: the feed is the first window on the page and shows up in the rail */
+      var fc = document.createElement("div"); fc.className = "card feed"; fc.id = "winfeed";
+      fc.innerHTML = '<h2>' + esc(label) + '<button class="fm-btn" id="feedPop" title="Float in the corner">Corner</button></h2><img src="' + esc(src) + '" alt="" onerror="this.parentNode.remove()">';
+      pane.insertBefore(fc, pane.firstChild);
+      var rail = document.getElementById("rail");
+      rail.insertAdjacentHTML("afterbegin", '<button data-win="winfeed" title="' + esc(label) + '">LV<small>Live</small></button>');
+    }
   }
   save();
 }
@@ -1624,7 +1649,10 @@ document.getElementById("rail").addEventListener("click", function(e){
   Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function(x){ x.classList.toggle("on", x === b); });
   w.classList.add("flash"); setTimeout(function(){ w.classList.remove("flash"); }, 900);
 });
+function setFeedMode(m){ feedMode = m; try { localStorage.setItem("pw-feed-mode", m); } catch(e){} render(); }
+document.getElementById("feedDock").addEventListener("click", function(){ setFeedMode("tile"); });
 paneEl.addEventListener("click", function(e){
+  if (e.target.closest("#feedPop")){ setFeedMode("corner"); return; }
   var hb = e.target.closest(".card > h2");
   if (hb){ hb.parentNode.classList.toggle("min"); return; }
   var t = e.target.closest("button"); if (!t) return;
