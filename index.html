@@ -163,6 +163,7 @@
   .plan-cell:hover{background:var(--chip-grad-hover)}
   .pc-n,.pc-t{font-family:var(--mono);font-size:10px;letter-spacing:.08em}
   .pc-who{font-size:14px;font-weight:700;letter-spacing:.01em;line-height:1.3}
+  .lap-chip .secs{font-size:10px;color:var(--ink-faint);letter-spacing:.02em}
   .plan-lens{margin-top:6px}
   .plan-lens input{max-width:none;width:100%;text-align:center;font-family:var(--mono)}
   tr.ck-done td input[type=text]{text-decoration:line-through;opacity:.5}
@@ -238,7 +239,7 @@
   .hs-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(26px,5vh,50px)}
   .hs-id{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,1.8vh,18px);text-shadow:0 1px 10px rgba(0,0,0,.5)}
   .hs-mark{width:clamp(96px,13vw,168px);height:clamp(96px,13vw,168px);object-fit:contain;filter:drop-shadow(0 4px 18px rgba(0,0,0,.55));
-    transform:translateX(-12.5%)} /* torso base (bottom edge of the figure) sits 12.5% right of the PNG canvas center */
+    transform:translateX(-10%)} /* torso base sits 12.5% right of the PNG canvas center; -10% leaves it a touch right of the text center, per taste */
   .hs-eyebrow{font-size:clamp(11px,1vw,13px);font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#fff}
   .hs-h1{font-family:var(--mono);text-transform:uppercase;font-weight:700;font-size:clamp(34px,5.2vw,64px);line-height:1.05;letter-spacing:.22em;padding-left:.22em;color:#fff;text-align:center;
     font-variation-settings:"opsz" 32;text-shadow:0 2px 22px rgba(0,0,0,.35)}
@@ -323,7 +324,7 @@ var META_DEFAULTS = {
   minStops:"", minStintMin:"", maxStintMin:"", maxDriveCons:"", maxDriveTotal:"", driverChange:"yes", vehicleSwap:"no", radios:"no",
   pitLoss:"", minPit:"", minWeight:"",
   /* vehicle */ vehicle:"", fuelCap:"", fuelPerLap:"", tyreLife:"", tyreSets:"", vehicleNotes:"",
-  /* track */ track:"", location:"", trackLen:"", lenUnit:"km", layout:"", direction:"cw", turns:"", trackNotes:"",
+  /* track */ track:"", location:"", trackLen:"", lenUnit:"km", layout:"", direction:"cw", turns:"", sectors:3, trackNotes:"",
   /* conditions */ weather:"", air:"", trackTemp:"", tempUnit:"C", surface:"dry", wind:"", light:"day", condNotes:"",
   /* targets */ targetLap:"", targetPos:"", stratNotes:"", grid:""
 };
@@ -337,13 +338,15 @@ function load(){
   if (!store || !store.races) store = seed();
   Object.keys(store.races).forEach(function(id){ normalize(store.races[id]); });
   if (!store.races[store.currentId]) store.currentId = Object.keys(store.races)[0];
+  store.series = store.series || {};
 }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){} }
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function cur(){ return store.races[store.currentId]; }
-function blankStint(){ return {d:"", kart:"", ps:"", pe:"", best:"", notes:"", laps:[], start:"", fuel:"", tyres:"", pit:""}; }
+function blankStint(){ return {d:"", kart:"", ps:"", pe:"", best:"", notes:"", laps:[], secs:[], start:"", fuel:"", tyres:"", pit:""}; }
+function alignSecs(laps, secs){ secs = secs || []; while (secs.length < laps.length) secs.push(null); secs.length = laps.length; return secs; }
 function blankRace(tplMeta, from){
-  var r = { meta:{}, drivers:[], plan:[], sessions:[], stints:[], rivals:[], ourPos:[], log:[], checklist:[], result:{pos:"", laps:"", notes:""} };
+  var r = { meta:{}, drivers:[], plan:[], sessions:[], stints:[], rivals:[], ourPos:[], log:[], checklist:[], result:{pos:"", laps:"", notes:"", fl:"", pole:""} };
   Object.keys(META_DEFAULTS).forEach(function(k){ r.meta[k] = META_DEFAULTS[k]; });
   Object.keys(tplMeta || {}).forEach(function(k){ r.meta[k] = tplMeta[k]; });
   if (from){ r.meta.name = from.meta.name; r.drivers = from.drivers.map(function(d){ return {id:d.id, name:d.name, c:d.c, weight:d.weight, licence:d.licence, notes:d.notes}; }); }
@@ -385,10 +388,10 @@ function normalize(r){
 
   r.stints = r.stints || [];
   while (r.stints.length < n) r.stints.push(blankStint()); r.stints.length = n;
-  r.stints.forEach(function(s){ var b = blankStint(); Object.keys(b).forEach(function(k){ if (s[k] == null) s[k] = b[k]; }); });
+  r.stints.forEach(function(s){ var b = blankStint(); Object.keys(b).forEach(function(k){ if (s[k] == null) s[k] = b[k]; }); s.secs = alignSecs(s.laps, s.secs); });
   r.ourPos = (r.ourPos || []).slice(0, n); while (r.ourPos.length < n) r.ourPos.push("");
   r.rivals = r.rivals || [];
-  r.rivals.forEach(function(rv){ rv.pos = (rv.pos || []).slice(0, n); while (rv.pos.length < n) rv.pos.push(""); if (rv.cls == null) rv.cls = ""; if (rv.no == null) rv.no = ""; });
+  r.rivals.forEach(function(rv){ rv.pos = (rv.pos || []).slice(0, n); while (rv.pos.length < n) rv.pos.push(""); if (rv.cls == null) rv.cls = ""; if (rv.no == null) rv.no = ""; if (rv.fin == null) rv.fin = ""; });
 
   /* sessions: practice / quali / warm-up / heats — migrates the old single quali block */
   r.sessions = r.sessions || [];
@@ -398,9 +401,11 @@ function normalize(r){
     delete r.quali;
   }
   if (!r.sessions.length) r.sessions.push({id:uid(), type:"quali", name:"Qualifying", cond:"", notes:"", times:{}});
-  r.sessions.forEach(function(s){ s.times = s.times || {}; if (s.cond == null) s.cond = ""; if (s.notes == null) s.notes = ""; if (!s.id) s.id = uid(); });
+  r.sessions.forEach(function(s){ s.times = s.times || {}; s.secs = s.secs || {}; Object.keys(s.times).forEach(function(d){ s.secs[d] = alignSecs(s.times[d], s.secs[d]); }); if (s.cond == null) s.cond = ""; if (s.notes == null) s.notes = ""; if (!s.id) s.id = uid(); });
   r.log = r.log || []; r.checklist = r.checklist || [];
   r.result = r.result || {pos:"", laps:"", notes:""};
+  if (r.result.fl == null) r.result.fl = ""; if (r.result.pole == null) r.result.pole = "";
+  m.sectors = Math.max(1, Math.min(10, +m.sectors || 1));
 }
 
 /* ---------- race geometry: units, lengths, clocks ---------- */
@@ -473,6 +478,62 @@ function allLaps(r){
 }
 function stintBest(s){ return s.laps.length ? Math.min.apply(null, s.laps) : (parseLap(s.best) || null); }
 function nowClock(){ return new Date().toTimeString().slice(0,8); }
+function nSect(r){ return +r.meta.sectors > 1 ? +r.meta.sectors : 0; }
+/* "51.234" → lap only; "18.2 20.1 13.0" (or / + ; separated, one per sector) → lap = sum, sectors kept */
+function parseLapOrSectors(str, n){
+  var parts = String(str || "").trim().split(/[\s\/+;|]+/).filter(Boolean);
+  if (parts.length === 1) return (function(ms){ return ms ? {ms:ms, secs:null} : null; })(parseLap(parts[0]));
+  if (!n || parts.length !== n) return null;
+  var secs = parts.map(parseLap); if (secs.some(function(x){ return x == null; })) return null;
+  return {ms:secs.reduce(function(a, b){ return a + b; }, 0), secs:secs};
+}
+function secsTag(secs){ return secs ? '<small class="secs">' + secs.map(function(x){ return fmtLap(x); }).join(" | ") + '</small>' : ""; }
+function posNum(v){ var m = String(v || "").match(/\d+/); return m ? +m[0] : null; }
+function teamKey(nm){ return String(nm || "").trim().toLowerCase(); }
+function seriesNames(){
+  var seen = {}, out = [];
+  Object.keys(store.races).forEach(function(id){ var nm = String(store.races[id].meta.series || "").trim(); if (nm && !seen[teamKey(nm)]){ seen[teamKey(nm)] = 1; out.push(nm); } });
+  return out.sort();
+}
+function seriesCfg(name){
+  var k = teamKey(name);
+  return store.series[k] = store.series[k] || {scheme:"25, 18, 15, 12, 10, 8, 6, 4, 2, 1", fl:1, pole:0, drop:0, adj:[]};
+}
+function seriesRaces(name){
+  var k = teamKey(name);
+  return Object.keys(store.races).map(function(id){ return {id:id, r:store.races[id]}; })
+    .filter(function(x){ return teamKey(x.r.meta.series) === k; })
+    .sort(function(a, b){ return String(a.r.meta.date).localeCompare(String(b.r.meta.date)) || String(a.r.meta.round).localeCompare(String(b.r.meta.round), undefined, {numeric:true}); });
+}
+function standings(name){
+  var cfg = seriesCfg(name), pts = String(cfg.scheme).split(/[,\s]+/).map(Number).filter(function(n){ return !isNaN(n); });
+  var races = seriesRaces(name), teams = {};
+  function add(nm, rid, p, why){
+    var k = teamKey(nm); if (!k) return;
+    var t = teams[k] = teams[k] || {name:String(nm).trim(), rounds:{}, why:{}, adj:0, us:false};
+    if (rid === "adj") t.adj += p; else { t.rounds[rid] = (t.rounds[rid] || 0) + p; t.why[rid] = (t.why[rid] || []).concat(why ? [why] : []); }
+  }
+  races.forEach(function(x){
+    var r = x.r, usName = r.meta.name || "Us";
+    add(usName, x.id, 0); teams[teamKey(usName)].us = true;
+    [{name:usName, pos:posNum(r.result.pos)}].concat(r.rivals.map(function(rv){ return {name:rv.name, pos:posNum(rv.fin)}; })).forEach(function(e){
+      if (e.pos) add(e.name, x.id, pts[e.pos - 1] || 0, "P" + e.pos);
+    });
+    if (+cfg.fl && r.result.fl) add(r.result.fl, x.id, +cfg.fl, "FL");
+    if (+cfg.pole && r.result.pole) add(r.result.pole, x.id, +cfg.pole, "pole");
+  });
+  (cfg.adj || []).forEach(function(a){ add(a.team, "adj", +a.pts || 0); });
+  var rows = Object.keys(teams).map(function(k){
+    var t = teams[k], scores = races.map(function(x){ return t.rounds[x.id] || 0; }), dropped = [];
+    if (+cfg.drop > 0 && races.length > +cfg.drop){
+      var idx = scores.map(function(v, i){ return {v:v, i:i}; }).sort(function(a, b){ return a.v - b.v; }).slice(0, +cfg.drop);
+      dropped = idx.map(function(o){ return o.i; });
+    }
+    var total = scores.reduce(function(a, v, i){ return a + (dropped.indexOf(i) >= 0 ? 0 : v); }, 0) + t.adj;
+    return {name:t.name, us:t.us, scores:scores, why:t.why, dropped:dropped, adj:t.adj, total:total};
+  }).sort(function(a, b){ return b.total - a.total || a.name.localeCompare(b.name); });
+  return {races:races, rows:rows, pts:pts};
+}
 var GIFS = {
   home:        ["https://media.giphy.com/media/c6WrI2xhfvM4YBBaGw/giphy.mp4"],
   setup:       ["https://media.giphy.com/media/1woWvtlpDNfthszYZF/giphy.gif"],
@@ -526,9 +587,10 @@ function tgtPill(avgMs){
 /* ---------- app state (not persisted) ---------- */
 var tab = "home";
 var openStint = -1;
-var sw = { running:false, t0:0, lastLap:0, stint:0 };  // stopwatch
+var sw = { running:false, t0:0, lastLap:0, stint:0, splits:[] };  // stopwatch
+var serName = "";                                        // series shown in the Series tab
 var cd = { running:false, endAt:0, stint:0 };           // countdown
-var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"]];
+var TABS = [["home","Home"],["setup","Setup"],["strategy","Strategy"],["sessions","Sessions"],["race","Race"],["map","Map"],["rivals","Rivals"],["analysis","Analysis"],["series","Series"]];
 
 /* ---------- header ---------- */
 function renderHeader(){
@@ -603,6 +665,7 @@ function paneSetup(){
     + fld("Layout / configuration","layout",m.layout,"text","e.g. GP loop, short course")
     + self("Direction","direction",m.direction,DIRS)
     + numf("Turns","turns",m.turns,"")
+    + numf("Timing sectors","sectors",m.sectors,"3")
     + '</div><div class="field" style="margin-top:12px"><label>Track notes — overtaking spots, pit entry, kerbs, hazards</label><textarea data-meta="trackNotes">' + esc(m.trackNotes) + '</textarea></div>';
 
   h += h2("Conditions") + '<div class="grid2">'
@@ -630,7 +693,7 @@ function paneSetup(){
     h += '<p class="hint" style="margin-top:8px">Minimum weight ' + esc(m.minWeight) + ' kg' + (under.length ? ' — ballast needed for ' + under.map(function(d){ return esc(first(d.name)) + " (+" + (+m.minWeight - +d.weight).toFixed(1) + " kg)"; }).join(", ") : ' — enter driver weights to see ballast needs') + '.</p>';
   }
 
-  h += h2("Checklist &amp; deadlines") + '<div class="btn-row" style="margin:10px 0"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
+  h += h2("Checklist &amp; deadlines") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="ckNew" placeholder="e.g. Pay entry fee, register drivers, load tyres" style="max-width:320px"><input type="date" id="ckDue" style="max-width:160px"><button class="mini" id="ckAdd">+ Add</button></div>';
   if (r.checklist.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th></th><th>Item</th><th>Due</th><th></th></tr></thead><tbody>';
     r.checklist.slice().sort(function(a, b){ return (a.done - b.done) || String(a.due).localeCompare(String(b.due)); }).forEach(function(c){
@@ -760,15 +823,16 @@ function buildPlan(r, stops){
 /* ---------- SESSIONS (practice / quali / warm-up / heats) ---------- */
 function paneSessions(){
   var r = cur();
-  var h = '<h2>Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>; the best lap is picked automatically and feeds the Analysis tab.</p>';
-  h += '<div class="btn-row" style="margin:10px 0"><select id="sessType">' + SESSION_TYPES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
+  var ns = nSect(r);
+  var h = '<h2>Sessions</h2><p class="hint">Log push laps per driver for every session — practice, qualifying, warm-up, heats. Enter times like <span class="mono">51.234</span> or <span class="mono">1:02.5</span>' + (ns ? ', or ' + ns + ' sector splits like <span class="mono">18.2 20.1 13.0</span> (the lap is their sum)' : '') + '; the best lap is picked automatically and feeds the Analysis tab.</p>';
+  h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="sessType">' + SESSION_TYPES.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="sessName" placeholder="session name (optional)" style="max-width:200px"><button class="mini" id="sessAdd">+ Add session</button>'
     + '<div class="field" style="max-width:160px;margin-left:auto"><label>Grid position</label><input type="text" class="mono" value="' + esc(r.meta.grid) + '" data-meta="grid" placeholder="e.g. P4"></div></div>';
   r.sessions.forEach(function(s){
     var typeName = (SESSION_TYPES.find(function(t){ return t[0] === s.type; }) || ["", s.type])[1];
     var allT = []; Object.keys(s.times).forEach(function(d){ allT = allT.concat(s.times[d]); });
     var sBest = allT.length ? Math.min.apply(null, allT) : null;
-    h += '<div class="tool" style="margin:12px 0"><h3>' + esc(s.name || typeName) + ' <span style="color:var(--ink-faint)">· ' + typeName + '</span>'
+    h += '<div class="tool" style="margin-top:12px;margin-bottom:12px"><h3>' + esc(s.name || typeName) + ' <span style="color:var(--ink-faint)">· ' + typeName + '</span>'
       + (sBest ? ' <span class="best" style="margin-left:8px">' + fmtLap(sBest) + '</span>' : "") + '</h3>'
       + '<div class="btn-row"><input type="text" value="' + esc(s.cond) + '" data-scond="' + s.id + '" placeholder="conditions — dry 24°C, damp, new tyres" style="max-width:300px">'
       + '<input type="text" value="' + esc(s.notes) + '" data-snote="' + s.id + '" placeholder="notes" style="max-width:300px">'
@@ -779,12 +843,12 @@ function paneSessions(){
       var best = times.length ? Math.min.apply(null, times) : null;
       var col = PAL[d.c % PAL.length].ui;
       h += '<div><div class="btn-row"><b style="color:' + col + '">' + esc(d.name) + '</b>'
-        + '<input type="text" class="mono" style="max-width:120px" placeholder="lap time" data-qadd="' + s.id + ':' + d.id + '">'
+        + '<input type="text" class="mono" style="max-width:' + (ns ? 200 : 120) + 'px" placeholder="' + (ns ? "lap or " + ns + " sectors" : "lap time") + '" data-qadd="' + s.id + ':' + d.id + '">'
         + '<button class="mini" data-qbtn="' + s.id + ':' + d.id + '">Add</button>'
         + (best ? '<span class="pill"><span class="dot" style="background:' + col + '"></span>best ' + fmtLap(best) + '</span>' : "")
         + '</div><div class="laps-list">'
         + times.map(function(ms, i){
-            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">' + fmtLap(ms)
+            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">' + fmtLap(ms) + secsTag((s.secs[d.id] || [])[i])
               + '<button title="delete" data-qdel="' + s.id + ':' + d.id + ':' + i + '">&times;</button></span>';
           }).join("")
         + '</div></div>';
@@ -815,9 +879,9 @@ function paneRace(){
     + '<div class="btn-row">'
     + '<select id="swStint">' + r.stints.map(function(s, i){ return '<option value="' + i + '"' + (sw.stint === i ? " selected" : "") + '>S' + (i+1) + '</option>'; }).join("") + '</select>'
     + (sw.running
-        ? '<button class="primary mini" id="swLap">LAP</button><button class="mini" id="swStop">Stop</button>'
+        ? (nSect(r) ? '<button class="mini" id="swSplit">SECTOR ' + Math.min(nSect(r), sw.splits.length + 1) + '</button>' : "") + '<button class="primary mini" id="swLap">LAP</button><button class="mini" id="swStop">Stop</button>'
         : '<button class="primary mini" id="swGo">Start</button>')
-    + '</div></div>';
+    + '</div>' + (nSect(r) ? '<p class="hint" style="margin:8px 0 0">Tap SECTOR at each split line; LAP closes the last sector and logs the lap with its splits.</p>' : "") + '</div>';
   h += '</div>';
 
   /* stint table */
@@ -849,12 +913,12 @@ function paneRace(){
     if (openStint === i){
       h += '<tr class="laprow"><td colspan="' + cols + '">'
         + '<div class="btn-row"><b style="font-family:var(--disp);text-transform:uppercase' + (col ? ";color:" + col : "") + '">S' + (i+1) + ' laps</b>'
-        + '<input type="text" class="mono" style="max-width:120px" placeholder="add lap" data-ladd="' + i + '">'
+        + '<input type="text" class="mono" style="max-width:' + (nSect(r) ? 200 : 120) + 'px" placeholder="' + (nSect(r) ? "lap or " + nSect(r) + " sectors" : "add lap") + '" data-ladd="' + i + '">'
         + '<button class="mini" data-lbtn="' + i + '">Add</button>'
         + (s.laps.length ? '<span class="pill">best ' + fmtLap(best) + '</span><span class="pill">avg ' + fmtLap(mean(s.laps)) + '</span>' + tgtPill(mean(s.laps)) : "")
         + '</div><div class="laps-list">'
         + s.laps.map(function(ms, li){
-            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">L' + (li+1) + ' &middot; ' + fmtLap(ms)
+            return '<span class="lap-chip' + (ms === best ? " best" : "") + '">L' + (li+1) + ' &middot; ' + fmtLap(ms) + secsTag(s.secs[li])
               + '<button title="delete" data-ldel="' + i + ':' + li + '">&times;</button></span>'; }).join("")
         + '</div></td></tr>';
     }
@@ -862,7 +926,7 @@ function paneRace(){
   h += '</tbody></table></div>';
 
   /* race log */
-  h += h2("Race log") + '<div class="btn-row" style="margin:10px 0"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
+  h += h2("Race log") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><select id="logKind">' + LOG_KINDS.map(function(k){ return '<option value="' + k[0] + '">' + k[1] + '</option>'; }).join("") + '</select>'
     + '<input type="text" id="logNote" placeholder="what happened — SC for stranded car T4, rain starting, 5s penalty #12" style="flex:1;min-width:220px"><button class="primary mini" id="logAdd">Log</button></div>';
   if (r.log.length){
     h += '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Flag</th><th>Note</th><th></th></tr></thead><tbody>';
@@ -878,8 +942,16 @@ function paneRace(){
     + '<div class="field"><label>Finish position</label><input type="text" class="mono" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="e.g. P2, 1st in class"></div>'
     + '<div class="field"><label>Laps completed</label><input type="text" class="mono" value="' + esc(r.result.laps) + '" data-res="laps" placeholder=""></div>'
     + '<div class="field"><label>Fastest lap (from data)</label><input type="text" class="mono" value="' + (allLaps(r).length ? fmtLap(Math.min.apply(null, allLaps(r).map(function(l){ return l.ms; }))) : "—") + '" disabled></div>'
-    + '</div><div class="field" style="margin-top:12px"><label>Debrief — what worked, what to change next time</label><textarea data-res="notes">' + esc(r.result.notes) + '</textarea></div>';
+    + teamPick("Fastest lap set by", "fl", r) + teamPick("Pole position", "pole", r)
+    + '</div><p class="hint" style="margin-top:8px">Finish positions here and in the Rivals tab feed the Series standings; fastest lap and pole earn bonus points where the series awards them.</p>'
+    + '<div class="field" style="margin-top:12px"><label>Debrief — what worked, what to change next time</label><textarea data-res="notes">' + esc(r.result.notes) + '</textarea></div>';
   return h;
+}
+
+function teamPick(label, key, r){
+  var names = [r.meta.name || "Us"].concat(r.rivals.map(function(rv){ return rv.name; }).filter(Boolean));
+  return '<div class="field"><label>' + label + '</label><select data-res="' + key + '"><option value="">—</option>' + names.map(function(n){
+    return '<option value="' + esc(n) + '"' + (r.result[key] === n ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>';
 }
 
 /* ---------- MAP (circle viewer + pit window) ---------- */
@@ -985,20 +1057,20 @@ function paneMap(){
 /* ---------- RIVALS ---------- */
 function paneRivals(){
   var r = cur(), n = r.plan.length;
-  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + '. Your team is the first row; class and number help when the tower gets busy.</p>';
-  h += '<div class="btn-row" style="margin:10px 0"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
+  var h = '<h2>Rivals &amp; positions</h2><p class="hint">Enter each entry’s position at the end of every stint' + (n === 1 ? " (or at any checkpoint you like)" : "") + ', and the finishing position once classified. Your team is the first row; finish positions feed the Series standings.</p>';
+  h += '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="rivName" placeholder="rival team / driver" style="max-width:220px"><button class="mini" id="rivAdd">+ Add rival</button></div>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>#</th><th>Class</th>';
   for (var i = 0; i < n; i++) h += '<th class="mono">S' + (i+1) + '</th>';
-  h += '<th></th></tr></thead><tbody>';
+  h += '<th>Finish</th><th></th></tr></thead><tbody>';
   h += '<tr><td><span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(r.meta.name || "Us") + '</span></td><td class="mono">' + esc(r.meta.carNo) + '</td><td>' + esc(r.meta.cls) + '</td>';
   for (var i2 = 0; i2 < n; i2++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(r.ourPos[i2]) + '" data-op="' + i2 + '"></td>';
-  h += '<td></td></tr>';
+  h += '<td><input class="num" type="text" value="' + esc(r.result.pos) + '" data-res="pos" placeholder="P?"></td><td></td></tr>';
   r.rivals.forEach(function(rv, ri){
     h += '<tr><td><input type="text" value="' + esc(rv.name) + '" data-rvn="' + ri + '" style="min-width:130px"></td>'
       + '<td><input class="num" type="text" value="' + esc(rv.no) + '" data-rvno="' + ri + '" style="max-width:56px"></td>'
       + '<td><input type="text" value="' + esc(rv.cls) + '" data-rvc="' + ri + '" style="max-width:90px"></td>';
     for (var j = 0; j < n; j++) h += '<td><input class="num" type="text" inputmode="numeric" value="' + esc(rv.pos[j]) + '" data-rp="' + ri + ':' + j + '"></td>';
-    h += '<td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
+    h += '<td><input class="num" type="text" value="' + esc(rv.fin) + '" data-rvf="' + ri + '" placeholder="P?"></td><td><button class="mini danger" data-rvdel="' + ri + '">&times;</button></td></tr>';
   });
   h += '</tbody></table></div>';
   h += posChart(r);
@@ -1107,7 +1179,30 @@ function paneAnalysis(){
   });
   h += '</tbody></table></div>';
   h += sessBlock;
+  h += sectorBlock(r);
   h += lapChart(r, laps, best);
+  return h;
+}
+function sectorBlock(r){
+  var n = nSect(r); if (!n) return "";
+  var rows = [];
+  r.stints.forEach(function(s, si){ s.secs.forEach(function(sc, li){ if (sc) rows.push({d:s.d, secs:sc, ms:s.laps[li], src:"S" + (si+1)}); }); });
+  r.sessions.forEach(function(s){ Object.keys(s.secs).forEach(function(d){ (s.secs[d] || []).forEach(function(sc, i){ if (sc) rows.push({d:d, secs:sc, ms:s.times[d][i], src:s.name || s.type}); }); }); });
+  if (!rows.length) return "";
+  function bestOf(list){ var b = [], ideal = 0; for (var k = 0; k < n; k++){ var v = Math.min.apply(null, list.map(function(x){ return x.secs[k]; })); b.push(v); ideal += v; } return {b:b, ideal:ideal, best:Math.min.apply(null, list.map(function(x){ return x.ms; }))}; }
+  var h = h2("Sectors") + '<div class="tbl-wrap"><table><thead><tr><th>Driver</th>';
+  for (var k = 0; k < n; k++) h += '<th>Best S' + (k+1) + '</th>';
+  h += '<th>Ideal lap</th><th>Actual best</th><th>Left on table</th></tr></thead><tbody>';
+  var groups = [{name:"All laps", list:rows, col:null}].concat(r.drivers.map(function(d){ return {name:d.name, list:rows.filter(function(x){ return x.d === d.id; }), col:PAL[d.c % PAL.length].ui}; }));
+  var teamBest = bestOf(rows);
+  groups.forEach(function(g){
+    if (!g.list.length) return;
+    var b = bestOf(g.list);
+    h += '<tr><td>' + (g.col ? '<span class="pill"><span class="dot" style="background:' + g.col + '"></span>' + esc(g.name) + '</span>' : '<b>' + g.name + '</b>') + '</td>';
+    b.b.forEach(function(v, k){ h += '<td class="mono' + (v === teamBest.b[k] ? " best" : "") + '">' + fmtLap(v) + '</td>'; });
+    h += '<td class="mono best">' + fmtLap(b.ideal) + '</td><td class="mono">' + fmtLap(b.best) + '</td><td class="mono">' + ((b.best - b.ideal) / 1000).toFixed(3) + 's</td></tr>';
+  });
+  h += '</tbody></table></div><p class="hint">Ideal lap = sum of each driver’s best sectors; “left on table” is how far the actual best lap sits above it. Purple marks the overall best in each sector. Uses every lap logged with splits, race and sessions alike (' + rows.length + ' laps).</p>';
   return h;
 }
 function tile(k, v, s){ return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>'; }
@@ -1145,6 +1240,46 @@ function lapChart(r, laps, best){
   return s;
 }
 
+/* ---------- SERIES (championship points) ---------- */
+function paneSeries(){
+  var names = seriesNames();
+  if (!names.length) return '<h2>Series standings</h2><p class="hint">No series yet. Give each race that counts the same series name in Setup → Event (e.g. “SWS Endurance Cup”), enter finishing positions in the Race result or Rivals tab, and the table builds itself here.</p>';
+  if (names.indexOf(serName) < 0) serName = (names.indexOf(String(cur().meta.series || "").trim()) >= 0 ? String(cur().meta.series).trim() : names[0]);
+  var cfg = seriesCfg(serName), st = standings(serName);
+  var h = '<h2>Series standings</h2><div class="btn-row" style="margin-top:10px;margin-bottom:10px"><div class="field" style="min-width:240px"><label>Series</label><select id="serSel">' + names.map(function(n){ return '<option value="' + esc(n) + '"' + (n === serName ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") + '</select></div>'
+    + '<span class="pill">' + st.races.length + ' round' + (st.races.length === 1 ? "" : "s") + ' in the app</span></div>';
+  h += '<div class="grid2">'
+    + '<div class="field"><label>Points by finishing position (1st, 2nd, …)</label><input type="text" class="mono" value="' + esc(cfg.scheme) + '" data-ser="scheme" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></div>'
+    + '<div class="field"><label>Fastest lap bonus</label><input type="number" min="0" step="0.5" value="' + esc(cfg.fl) + '" data-ser="fl"></div>'
+    + '<div class="field"><label>Pole bonus</label><input type="number" min="0" step="0.5" value="' + esc(cfg.pole) + '" data-ser="pole"></div>'
+    + '<div class="field"><label>Drop worst results</label><input type="number" min="0" step="1" value="' + esc(cfg.drop) + '" data-ser="drop"></div>'
+    + '</div>';
+  if (st.rows.length){
+    h += '<div class="tbl-wrap"><table><thead><tr><th>Pos</th><th>Team</th>';
+    st.races.forEach(function(x){ h += '<th class="mono" title="' + esc(x.r.meta.event) + '">' + esc(x.r.meta.round ? "R" + String(x.r.meta.round).replace(/^r/i, "") : (x.r.meta.event || x.id).slice(0, 10)) + '</th>'; });
+    h += '<th>Adj</th><th>Total</th><th>Gap</th></tr></thead><tbody>';
+    st.rows.forEach(function(row, i){
+      h += '<tr' + (row.us ? ' style="background:rgba(244,157,112,.07)"' : "") + '><td class="mono">' + (i+1) + '</td><td>' + (row.us ? '<span class="pill"><span class="dot" style="background:' + PAL[0].ui + '"></span>' + esc(row.name) + '</span>' : esc(row.name)) + '</td>';
+      row.scores.forEach(function(v, k){
+        var why = (row.why[st.races[k].id] || []).join(" + ");
+        h += '<td class="mono"' + (row.dropped.indexOf(k) >= 0 ? ' style="text-decoration:line-through;opacity:.5" title="dropped"' : (why ? ' title="' + esc(why) + '"' : "")) + '>' + v + '</td>';
+      });
+      h += '<td class="mono">' + (row.adj ? (row.adj > 0 ? "+" : "") + row.adj : "") + '</td><td class="mono best">' + row.total + '</td><td class="mono">' + (i ? "−" + (st.rows[0].total - row.total) : "") + '</td></tr>';
+    });
+    h += '</tbody></table></div><p class="hint">Points come from each round’s finishing positions (Race → Result for you, Rivals → Finish for everyone else), plus fastest-lap and pole bonuses where set. Hover a cell for the breakdown. Team names must match across rounds.</p>';
+  } else h += '<p class="hint">No points yet — enter finishing positions for the rounds in this series.</p>';
+
+  h += h2("Adjustments &amp; rounds outside the app") + '<div class="btn-row" style="margin-top:10px;margin-bottom:10px"><input type="text" id="adjTeam" placeholder="team" style="max-width:200px"><input type="number" id="adjPts" placeholder="± points" step="0.5" style="max-width:110px"><input type="text" id="adjNote" placeholder="reason — R2 held before we used the app, penalty, …" style="flex:1;min-width:200px"><button class="mini" id="adjAdd">+ Add</button></div>';
+  if ((cfg.adj || []).length){
+    h += '<div class="tbl-wrap"><table><thead><tr><th>Team</th><th>Points</th><th>Note</th><th></th></tr></thead><tbody>';
+    cfg.adj.forEach(function(a, i){
+      h += '<tr><td><input type="text" value="' + esc(a.team) + '" data-adjt="' + i + '"></td><td><input class="num" type="text" value="' + esc(a.pts) + '" data-adjp="' + i + '"></td><td><input type="text" value="' + esc(a.note) + '" data-adjn="' + i + '"></td><td><button class="mini danger" data-adjdel="' + i + '">&times;</button></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  return h;
+}
+
 /* ---------- render + events ---------- */
 function render(){
   renderHeader(); renderTabs();
@@ -1159,8 +1294,9 @@ function render(){
     : tab === "race" ? paneRace()
     : tab === "map" ? paneMap()
     : tab === "rivals" ? paneRivals()
+    : tab === "series" ? paneSeries()
     : paneAnalysis();
-  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration"}[tab];
+  var bgKey = {home:"home", setup:"setup", strategy:"strategy", sessions:"highlights", race:"onboard", map:"map", rivals:"champagne", analysis:"celebration", series:"celebration"}[tab];
   var feed = document.getElementById("feedMon");
   if (home){
     feed.hidden = true;
@@ -1250,6 +1386,12 @@ paneEl.addEventListener("change", function(e){
   else if ((a = t.getAttribute("data-sf"))) { r.stints[+a].fuel = t.value; save(); }
   else if ((a = t.getAttribute("data-st"))) { r.stints[+a].tyres = t.value; save(); }
   else if ((a = t.getAttribute("data-res"))) { r.result[a] = t.value; save(); }
+  else if ((a = t.getAttribute("data-rvf"))) { r.rivals[+a].fin = t.value; save(); }
+  else if ((a = t.getAttribute("data-ser"))) { var cfg = seriesCfg(serName); cfg[a] = a === "scheme" ? t.value : (t.value === "" ? 0 : +t.value); render(); }
+  else if ((a = t.getAttribute("data-adjt"))) { seriesCfg(serName).adj[+a].team = t.value; render(); }
+  else if ((a = t.getAttribute("data-adjp"))) { seriesCfg(serName).adj[+a].pts = +t.value || 0; render(); }
+  else if ((a = t.getAttribute("data-adjn"))) { seriesCfg(serName).adj[+a].note = t.value; save(); }
+  else if (t.id === "serSel") { serName = t.value; render(); }
   else if ((a = t.getAttribute("data-op"))) { r.ourPos[+a] = t.value; render(); }
   else if ((a = t.getAttribute("data-rvn"))) { r.rivals[+a].name = t.value; render(); }
   else if ((a = t.getAttribute("data-rvno"))) { r.rivals[+a].no = t.value; save(); }
@@ -1290,10 +1432,15 @@ paneEl.addEventListener("click", function(e){
     r.sessions = r.sessions.filter(function(s){ return s.id !== a; }); normalize(r); render();
   }
   else if ((a = t.getAttribute("data-qbtn"))) addQuali(a);
-  else if ((a = t.getAttribute("data-qdel"))){ var q = a.split(":"); var sq = sessById(r, q[0]); if (sq) sq.times[q[1]].splice(+q[2], 1); render(); }
+  else if ((a = t.getAttribute("data-qdel"))){ var q = a.split(":"); var sq = sessById(r, q[0]); if (sq){ sq.times[q[1]].splice(+q[2], 1); (sq.secs[q[1]] || []).splice(+q[2], 1); } render(); }
   else if ((a = t.getAttribute("data-open"))){ openStint = openStint === +a ? -1 : +a; render(); }
   else if ((a = t.getAttribute("data-lbtn"))) addLap(+a);
-  else if ((a = t.getAttribute("data-ldel"))){ var p = a.split(":"); r.stints[+p[0]].laps.splice(+p[1], 1); render(); }
+  else if ((a = t.getAttribute("data-ldel"))){ var p = a.split(":"); r.stints[+p[0]].laps.splice(+p[1], 1); r.stints[+p[0]].secs.splice(+p[1], 1); render(); }
+  else if (t.id === "adjAdd"){
+    var at = document.getElementById("adjTeam").value.trim(); if (!at) return;
+    seriesCfg(serName).adj.push({team:at, pts:+document.getElementById("adjPts").value || 0, note:document.getElementById("adjNote").value.trim()}); render();
+  }
+  else if ((a = t.getAttribute("data-adjdel"))){ seriesCfg(serName).adj.splice(+a, 1); render(); }
   else if (t.id === "logAdd") addLog();
   else if ((a = t.getAttribute("data-logdel"))){ r.log.splice(+a, 1); render(); }
   else if (t.id === "rivAdd"){
@@ -1322,14 +1469,18 @@ paneEl.addEventListener("click", function(e){
   }
   else if (t.id === "cdStart") startCountdown();
   else if (t.id === "cdStop"){ cd.running = false; render(); }
-  else if (t.id === "swGo"){ sw.running = true; sw.t0 = Date.now(); sw.lastLap = sw.t0; sw.stint = +document.getElementById("swStint").value; render(); }
-  else if (t.id === "swLap"){
-    var now = Date.now(), ms = now - sw.lastLap; sw.lastLap = now;
-    cur().stints[sw.stint].laps.push(ms); save();
-    document.getElementById("swLast").textContent = "lap " + fmtLap(ms);
-    if (tab === "race" && openStint === sw.stint) render();
+  else if (t.id === "swGo"){ sw.running = true; sw.t0 = Date.now(); sw.lastLap = sw.t0; sw.splits = []; sw.stint = +document.getElementById("swStint").value; render(); }
+  else if (t.id === "swSplit"){
+    if (sw.splits.length < nSect(r) - 1){ sw.splits.push(Date.now()); render(); document.getElementById("swLast").textContent = "S" + sw.splits.length + " " + fmtLap(sw.splits[sw.splits.length-1] - (sw.splits.length > 1 ? sw.splits[sw.splits.length-2] : sw.lastLap)); }
   }
-  else if (t.id === "swStop"){ sw.running = false; render(); }
+  else if (t.id === "swLap"){
+    var now = Date.now(), ms = now - sw.lastLap, secs = null;
+    if (nSect(r) && sw.splits.length === nSect(r) - 1){ secs = []; var prev = sw.lastLap; sw.splits.concat([now]).forEach(function(tm){ secs.push(tm - prev); prev = tm; }); }
+    sw.lastLap = now; sw.splits = [];
+    var stn = cur().stints[sw.stint]; stn.laps.push(ms); stn.secs = alignSecs(stn.laps, stn.secs); stn.secs[stn.laps.length - 1] = secs; save();
+    render(); document.getElementById("swLast").textContent = "lap " + fmtLap(ms) + (secs ? " · " + secs.map(fmtLap).join(" | ") : "");
+  }
+  else if (t.id === "swStop"){ sw.running = false; sw.splits = []; render(); }
 });
 paneEl.addEventListener("keydown", function(e){
   if (e.key !== "Enter") return;
@@ -1342,18 +1493,19 @@ paneEl.addEventListener("keydown", function(e){
 });
 function addQuali(key){
   var inp = paneEl.querySelector('[data-qadd="' + key + '"]');
-  var ms = parseLap(inp.value);
-  if (ms == null){ inp.select(); return; }
-  var r = cur(), k = key.split(":"), s = sessById(r, k[0]); if (!s) return;
-  (s.times[k[1]] = s.times[k[1]] || []).push(ms);
+  var r = cur(), lp = parseLapOrSectors(inp.value, nSect(r));
+  if (!lp){ inp.select(); return; }
+  var k = key.split(":"), s = sessById(r, k[0]); if (!s) return;
+  (s.times[k[1]] = s.times[k[1]] || []).push(lp.ms);
+  s.secs[k[1]] = alignSecs(s.times[k[1]], s.secs[k[1]]); s.secs[k[1]][s.times[k[1]].length - 1] = lp.secs;
   render();
   var again = paneEl.querySelector('[data-qadd="' + key + '"]'); if (again) again.focus();
 }
 function addLap(si){
   var inp = paneEl.querySelector('[data-ladd="' + si + '"]');
-  var ms = parseLap(inp.value);
-  if (ms == null){ inp.select(); return; }
-  cur().stints[si].laps.push(ms); render();
+  var r = cur(), lp = parseLapOrSectors(inp.value, nSect(r));
+  if (!lp){ inp.select(); return; }
+  var stn = r.stints[si]; stn.laps.push(lp.ms); stn.secs = alignSecs(stn.laps, stn.secs); stn.secs[stn.laps.length - 1] = lp.secs; render();
   var again = paneEl.querySelector('[data-ladd="' + si + '"]'); if (again) again.focus();
 }
 function addLog(){

@@ -33,15 +33,20 @@ in place.
   lap logging, conditions, automatic best, grid position.
 - **Race**: stint table (planned window, actual start, driver, vehicle number,
   positions, pit time, fuel, tyres, best lap, laps, notes), per-stint lap
-  logger, a stint countdown with pit-board or radio prompts, a lap stopwatch, a
+  logger that accepts a lap time or per-sector splits, a stint countdown with
+  pit-board or radio prompts, a lap stopwatch with a SECTOR button, a
   timestamped race log (flags, safety car, pit, penalty, incident, weather),
-  and the result with a debrief.
+  and the result with finish position, fastest-lap and pole holder, debrief.
 - **Map**: race-progress ring with proportional stint arcs, timing tower from
   rival positions, pit-window timeline, live clock and NOW cursor.
-- **Rivals**: competitor entries with number and class, per-stint positions,
-  position-trace chart.
+- **Rivals**: competitor entries with number, class, per-stint positions and
+  finishing position, position-trace chart.
 - **Analysis**: best/avg/consistency tiles, average speed from lap length,
-  per-driver and per-stint tables, session-by-session best laps, lap-time chart.
+  per-driver and per-stint tables, session-by-session best laps, a sector table
+  (best sector per driver, ideal lap, time left on the table), lap-time chart.
+- **Series**: championship standings across every race sharing a series name.
+  Configurable points by position, fastest-lap and pole bonuses, drop-worst
+  results, and manual adjustments for penalties or rounds held outside the app.
 
 ## `vegas-race-book.html` — Vegas strategy book
 
